@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>半吊子廚房｜預訂管理系統</title>
+
+<!-- ① Firebase SDK (Compat v9) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FDFAF4;--surf:#FFF;--pri:#5C3317;--acc:#C87B2A;--acc2:#FDEFD8;--txt:#2C1A0E;--txt2:#8C6448;--bdr:#E5D8C8;--bg2:#F5EDE0;--ok:#4D8C54;--warn:#C87B2A;--err:#C0392B;--r:12px;--nav:60px;--sha:0 2px 14px rgba(44,26,14,.10)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}body{background:var(--bg);color:var(--txt);font-family:'Noto Sans TC',sans-serif;-webkit-tap-highlight-color:transparent}
+#app{max-width:480px;margin:0 auto;height:100dvh;height:100vh;display:flex;flex-direction:column;background:var(--bg);position:relative}
+
+/* HEADER */
+.hd{background:var(--pri);color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;z-index:30}
+.hd-brand{font-family:'Noto Serif TC';font-size:15px;font-weight:700;letter-spacing:.5px;line-height:1.2}
+.hd-sub{font-size:10px;opacity:.6;margin-top:1px}
+.hd-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hd-btn{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'Noto Sans TC';font-size:13px;white-space:nowrap}
+
+/* SYNC BUTTON */
+.sync-btn{display:flex;align-items:center;gap:5px;border:none;border-radius:8px;padding:7px 11px;cursor:pointer;font-family:'Noto Sans TC';font-size:12px;font-weight:500;transition:all .2s;white-space:nowrap}
+.sync-idle{background:rgba(255,255,255,.12);color:rgba(255,255,255,.7)}
+.sync-pending{background:var(--acc);color:#fff;animation:pulse 2s infinite}
+.sync-syncing{background:rgba(255,255,255,.2);color:#fff;pointer-events:none;opacity:.8}
+.sync-err{background:var(--err);color:#fff}
+.online-dot{width:7px;height:7px;border-radius:50%;background:#4CAF50;flex-shrink:0}
+.offline-dot{background:#9E9E9E}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.spinning{animation:spin .8s linear infinite;display:inline-block}
+
+/* STATUS BAR */
+.fb-bar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:5px 16px;font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.fb-bar.err{background:#FDECEA;color:var(--err)}
+
+/* LOCK WARNING */
+.lock-warn{background:#FFF8E1;border-left:3px solid #FFA000;padding:12px 14px;font-size:13px;color:#5D4037;margin:0 14px 10px;border-radius:0 8px 8px 0;display:flex;align-items:center;gap:8px}
+
+/* NAV */
+.nav{width:100%;height:var(--nav);background:var(--surf);border-top:1px solid var(--bdr);display:flex;z-index:30;box-shadow:0 -2px 10px rgba(44,26,14,.06);flex-shrink:0}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;font-family:'Noto Sans TC';font-size:10px;color:var(--txt2);transition:color .15s;padding:0;position:relative}
+.nb.on{color:var(--acc)}
+.ni{font-size:22px;line-height:1}
+.nb-badge{position:absolute;top:6px;right:calc(50% - 14px);background:var(--err);color:#fff;font-size:9px;border-radius:10px;padding:1px 5px;font-weight:700;min-width:16px;text-align:center}
+
+/* SCROLL WRAPPER */
+#pg-wrapper{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+/* PAGE */
+.pg{padding-bottom:20px}
+
+/* CARD */
+.card{background:var(--surf);border-radius:var(--r);box-shadow:var(--sha);padding:16px;margin:0 14px 10px}
+.sec-hd{font-family:'Noto Serif TC';font-size:14px;font-weight:700;color:var(--pri);padding:14px 18px 8px;border-bottom:1px solid var(--bg2)}
+
+/* FORM */
+.fld{margin-bottom:12px}
+.lbl{font-size:12px;color:var(--txt2);font-weight:500;margin-bottom:4px;display:block}
+.inp{width:100%;border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;font-family:'Noto Sans TC';font-size:14px;color:var(--txt);background:var(--bg);outline:none;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+.inp:focus{border-color:var(--acc)}
+textarea.inp{resize:vertical;min-height:60px}
+select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238C6448' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+/* BUTTONS */
+.btn{border:none;border-radius:8px;cursor:pointer;font-family:'Noto Sans TC';font-size:14px;font-weight:500;padding:10px 18px;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s,transform .1s;text-align:center;justify-content:center}
+.btn:active{transform:scale(.97)}
+.btn-pri{background:var(--pri);color:#fff}
+.btn-acc{background:var(--acc);color:#fff}
+.btn-out{background:transparent;border:1px solid var(--bdr);color:var(--txt)}
+.btn-err{background:var(--err);color:#fff}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:6px}
+.btn-blk{width:100%;justify-content:center}
+
+/* BADGES */
+.bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.bdg-ok{background:#E8F5E9;color:#2E7D32}
+.bdg-cancel{background:#FDECEA;color:#C62828}
+.bdg-paid{background:#E8F5E9;color:#2E7D32}
+.bdg-unpaid{background:#FFF3E0;color:#E65100}
+.bdg-partial{background:#FFFDE7;color:#E65100}
+.bdg-ship{background:#E8EAF6;color:#283593}
+.bdg-pending{background:#FFF3E0;color:#E65100}
+
+/* RADIO PILLS */
+.rg{display:flex;gap:7px;flex-wrap:wrap}
+.rp{border:1px solid var(--bdr);border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;color:var(--txt2);transition:all .15s;background:var(--bg);user-select:none}
+.rp.on{border-color:var(--acc);background:var(--acc2);color:var(--pri);font-weight:500}
+
+/* ITEM ROWS */
+.item-row{display:flex;gap:7px;align-items:center;margin-bottom:8px}
+.item-row .inp{min-width:0}
+.item-sel{flex:2}
+.item-qty{flex:0 0 64px}
+.item-info{flex:0 0 58px;font-size:11px;color:var(--txt2);text-align:right}
+.item-del{background:none;border:none;cursor:pointer;color:var(--err);font-size:20px;padding:4px;line-height:1;flex-shrink:0}
+
+/* SUMMARY */
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;border-bottom:1px solid var(--bg2)}
+.sum-total{font-weight:700;font-size:16px;color:var(--pri);border-top:2px solid var(--bdr);padding-top:8px;margin-top:4px;border-bottom:none}
+
+/* FAB */
+.fab{position:sticky;bottom:16px;float:right;margin-right:18px;width:52px;height:52px;border-radius:50%;background:var(--acc);color:#fff;border:none;cursor:pointer;font-size:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(200,123,42,.45);z-index:20;transition:transform .15s;line-height:1;clear:both}
+.fab:hover{transform:scale(1.07)}
+
+/* FILTER BAR */
+.fbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap}
+.fbar .inp{flex:1;min-width:90px}
+
+/* ORDER CARD */
+.oc-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.oc-name{font-family:'Noto Serif TC';font-size:15px;font-weight:700}
+.oc-date{font-size:11px;color:var(--txt2)}
+.oc-detail{font-size:12px;color:var(--txt2);margin-bottom:2px}
+.oc-row{display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap}
+.oc-total{font-weight:700;color:var(--pri);font-size:15px}
+.oc-acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.oc-items{font-size:12px;color:var(--txt2);margin:4px 0;line-height:1.6}
+
+/* SEGMENT */
+.seg{display:flex;background:var(--bg2);border-radius:8px;padding:3px;gap:2px;margin:14px 14px 0}
+.sb{flex:1;border:none;background:none;border-radius:6px;padding:7px 10px;cursor:pointer;font-family:'Noto Sans TC';font-size:13px;color:var(--txt2);transition:all .15s}
+.sb.on{background:var(--surf);color:var(--pri);font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* KITCHEN */
+.kh{background:var(--pri);color:#fff;padding:16px 18px}
+.kh-title{font-family:'Noto Serif TC';font-size:16px;font-weight:700;margin-bottom:10px}
+.kh-date-row{display:flex;align-items:center;gap:10px}
+.kh-date{font-size:20px;font-weight:700;font-family:'Noto Serif TC'}
+.kh-inp{background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:14px;font-family:'Noto Sans TC';outline:none}
+.kh-inp::-webkit-calendar-picker-indicator{filter:invert(1)}
+.dem-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg2);gap:8px}
+.dem-name{font-size:14px;font-weight:500;flex:1}
+.dem-nums{display:flex;gap:10px}
+.dem-v{font-size:13px;text-align:center;min-width:44px}
+.dem-v span{display:block;font-size:10px;color:var(--txt2)}
+.dem-total{font-size:15px;font-weight:700;color:var(--pri);min-width:52px;text-align:right}
+.dem-hd{display:flex;justify-content:flex-end;gap:10px;padding:6px 0 2px;font-size:10px;color:var(--txt2)}
+.dem-hd div{min-width:44px;text-align:center}
+.dem-hd .dem-total{min-width:52px}
+
+/* STAT */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px}
+.stat-box{background:var(--bg2);border-radius:10px;padding:14px}
+.stat-num{font-family:'Noto Serif TC';font-size:22px;font-weight:700;color:var(--pri)}
+.stat-lbl{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* PROD ROW */
+.pr{display:flex;align-items:center;gap:10px;padding:12px;background:var(--surf);border-radius:8px;margin:0 14px 8px;border:1px solid var(--bdr)}
+.pr.inactive{opacity:.5}
+.pr-info{flex:1;min-width:0}
+.pr-name{font-size:14px;font-weight:500}
+.pr-meta{font-size:12px;color:var(--txt2);margin-top:1px}
+
+/* TOAST */
+.toast-wrap{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none}
+.toast{background:rgba(44,26,14,.9);color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;white-space:nowrap;animation:tin .2s ease}
+.toast.err{background:var(--err)}
+.toast.ok{background:var(--ok)}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* MODAL */
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal{background:var(--surf);border-radius:16px;padding:22px;max-width:340px;width:100%}
+.modal-title{font-family:'Noto Serif TC';font-size:16px;font-weight:700;color:var(--pri);margin-bottom:8px}
+.modal-msg{font-size:14px;color:var(--txt2);line-height:1.6}
+.modal-acts{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+
+/* MISC */
+.empty{text-align:center;padding:48px 20px;color:var(--txt2)}
+.empty-icon{font-size:40px;margin-bottom:8px}
+.empty-text{font-size:14px}
+.pt{padding-top:12px}
+.mx{margin:0 14px}
+.mb{margin-bottom:10px}
+.row{display:flex;gap:10px}
+.row>*{flex:1;min-width:0}
+.divider{border:none;border-top:1px solid var(--bg2);margin:4px 0 12px}
+.chip{background:var(--bg2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--txt2);display:inline-block}
+.warn-box{background:#FFF8E1;border-left:3px solid var(--warn);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13px;color:var(--pri);margin:0 14px 12px}
+.box-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.box-hd-title{font-size:13px;font-weight:500;color:var(--pri)}
+.cbox-row{background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hd-el"></div>
+  <div id="fb-bar-el"></div>
+  <div id="pg-wrapper">
+    <div id="pg-el" class="pg"></div>
+  </div>
+  <nav class="nav" id="nav-el"></nav>
+  <div class="toast-wrap" id="toast-el"></div>
+  <div id="modal-el"></div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════
+// 半吊子廚房 THE HALF KITCHEN  |  預訂管理系統 v2.0 (Firebase)
+// ═══════════════════════════════════════════════════════════════
+
+// ══ ② 填入 Firebase 設定後，將 USE_FIREBASE 改為 true ═══════════
+const USE_FIREBASE = true;
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyA7LvmsWTW8G3sp-KyW3ef9O6dd8HuHId4",
+  authDomain:        "half-kitchen.firebaseapp.com",
+  projectId:         "half-kitchen",
+  storageBucket:     "half-kitchen.firebasestorage.app",
+  messagingSenderId: "622049282336",
+  appId:             "1:622049282336:web:df7be0688e4321de0e6f45"
+};
+// ═══════════════════════════════════════════════════════════════
+
+// ── Session（每個瀏覽器視窗有唯一 ID，用於衝突鎖定）─────────────
+const MY_ID = sessionStorage.getItem('hk_uid') || (() => {
+  const id = 'u_' + Math.random().toString(36).slice(2, 8);
+  sessionStorage.setItem('hk_uid', id);
+  return id;
+})();
+let MY_NAME = localStorage.getItem('hk_name') || '';
+
+// ── 初始商品資料 ────────────────────────────────────────────────
+const PRODUCTS_DEF = [
+  {id:'p1', name:'招牌鹹蛋雪球',   unit:'罐',price:230,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p2', name:'經典原味雪球',   unit:'罐',price:230,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p3', name:'包心巧克力雪球', unit:'罐',price:240,conv:18,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p4', name:'可可2.0雪球',    unit:'罐',price:240,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p5', name:'伯爵茶雪球',     unit:'罐',price:240,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p6', name:'桂花烏龍茶雪球', unit:'罐',price:240,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p7', name:'酸奶洋蔥雪球',   unit:'罐',price:240,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p8', name:'莓果雪球',       unit:'罐',price:270,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p9', name:'海鹽焦糖雪球',   unit:'罐',price:270,conv:20,cu:'顆',cat:'雪球系列',    active:true},
+  {id:'p10',name:'美式軟餅乾',     unit:'罐',price:190,conv:6, cu:'片',cat:'手工餅乾系列',active:true},
+  {id:'p11',name:'蔓越莓燕麥餅乾', unit:'罐',price:240,conv:8, cu:'片',cat:'手工餅乾系列',active:true},
+  {id:'p12',name:'檸檬磅蛋糕',     unit:'條',price:420,conv:9, cu:'片',cat:'磅蛋糕系列',  active:true},
+  {id:'p13',name:'伯爵磅蛋糕',     unit:'條',price:420,conv:9, cu:'片',cat:'磅蛋糕系列',  active:true},
+  {id:'p14',name:'可可磅蛋糕',     unit:'條',price:480,conv:9, cu:'片',cat:'磅蛋糕系列',  active:true},
+  {id:'p15',name:'鹹蛋磅蛋糕',     unit:'條',price:480,conv:9, cu:'片',cat:'磅蛋糕系列',  active:true},
+  {id:'p16',name:'抹茶紅豆磅蛋糕', unit:'條',price:540,conv:9, cu:'片',cat:'磅蛋糕系列',  active:true},
+];
+
+// ── STATE ────────────────────────────────────────────────────────
+const S = {
+  page:'orders', orders:[], products:JSON.parse(JSON.stringify(PRODUCTS_DEF)),
+  form:null, formMode:'new',
+  filterDate:today(), filterName:'', filterStatus:'all',
+  kitchenDate:today(), reportTab:'day', prodForm:null, confirmCb:null,
+  // Firebase
+  fbOnline:false, fbError:null,
+  pendingSync:new Set(),
+  syncStatus:'idle',    // 'idle' | 'syncing' | 'error'
+  currentLock:null,     // 目前持有鎖定的 orderId
+  lockRefreshTimer:null,
+  // POS 內場看板
+  posData:{},           // {productName: {walkin:N, online:N}} 罐/條單位
+  posLoading:false,
+  posError:null,
+  // POS 報表整合
+  reportPosData:{},     // {productName: {walkin:N, online:N, walkinAmt:$, onlineAmt:$}}
+  reportPosLoading:false,
+  // 自訂日期查詢
+  planStart:today(),
+  planEnd:today(),
+  planPosData:{},
+  planPosLoading:false,
+};
+
+let db = null;
+
+// ══════════════════════════════════════════════════════════════════
+// FIREBASE — 初始化
+// ══════════════════════════════════════════════════════════════════
+function initFirebase() {
+  if (!USE_FIREBASE) return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    // 多分頁離線同步
+    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+    listenOrders();
+    listenProducts();
+    S.fbOnline = true;
+    renderFbBar();
+  } catch (e) {
+    S.fbError = e.message;
+    renderFbBar();
+  }
+}
+
+// ── 即時監聽：訂單集合 ─────────────────────────────────────────────
+// 其他人對訂單的任何新增/修改/刪除，都會即時反映在本地 UI
+function listenOrders() {
+  if (!db) return;
+  db.collection('orders').onSnapshot(snapshot => {
+    let changed = false;
+    snapshot.docChanges().forEach(change => {
+      const data = { id: change.doc.id, ...change.doc.data() };
+      if (change.type === 'added' || change.type === 'modified') {
+        // 若本地有待同步的修改，以本地為準，跳過遠端更新
+        if (S.pendingSync.has(data.id)) return;
+        const idx = S.orders.findIndex(o => o.id === data.id);
+        if (idx >= 0) S.orders[idx] = data; else S.orders.push(data);
+        changed = true;
+      } else if (change.type === 'removed') {
+        const prev = S.orders.length;
+        S.orders = S.orders.filter(o => o.id !== change.doc.id);
+        S.pendingSync.delete(change.doc.id);
+        if (S.orders.length !== prev) changed = true;
+      }
+    });
+    if (changed) {
+      saveLocal();
+      // 正在編輯表單時，不重新渲染頁面；只更新 header 的同步按鈕
+      if (S.page !== 'orderForm') render();
+      else { renderHeader(); renderFbBar(); }
+    }
+  }, error => {
+    S.fbOnline = false;
+    S.fbError = error.message;
+    renderFbBar();
+  });
+}
+
+// ── 即時監聽：商品主檔（自動同步，確保多人看到同一份商品清單）──────
+function listenProducts() {
+  if (!db) return;
+  db.collection('order_products').doc('main').onSnapshot(doc => {
+    if (doc.exists && doc.data().products) {
+      S.products = doc.data().products;
+      saveLocal();
+      if (S.page !== 'orderForm') render();
+    } else if (!doc.exists) {
+      pushProductsNow(); // 首次：將預設商品推送上去
+    }
+  }, err => console.error('Products listener:', err));
+}
+
+// ── 手動同步：將所有 pendingSync 訂單批次寫入 Firebase ─────────────
+// 設計邏輯：
+//   操作員完成動作後（新增/編輯/取消），訂單先存在本地（localStorage）
+//   並加入 pendingSync 佇列。畫面上顯示「☁️ 同步 (N)」按鈕。
+//   操作員確認無誤後，手動按下同步，批次上傳到 Firestore。
+async function syncToCloud() {
+  if (!db) { toast('⚠️ Firebase 未連接', 'err'); return; }
+  if (S.pendingSync.size === 0) { toast('目前沒有待同步的資料'); return; }
+
+  S.syncStatus = 'syncing';
+  renderHeader();
+
+  const batch = db.batch();
+  const ids = [...S.pendingSync];
+
+  ids.forEach(id => {
+    const order = S.orders.find(o => o.id === id);
+    if (order) {
+      batch.set(db.collection('orders').doc(id), order);
+    } else {
+      // 本地已刪除的訂單，從 Firebase 也刪除
+      batch.delete(db.collection('orders').doc(id));
+    }
+  });
+
+  try {
+    await batch.commit();
+    ids.forEach(id => S.pendingSync.delete(id));
+    S.syncStatus = 'idle';
+    saveLocal();
+    toast('✅ 已同步 ' + ids.length + ' 筆到雲端', 'ok');
+  } catch (e) {
+    S.syncStatus = 'error';
+    toast('⚠️ 同步失敗：' + e.message, 'err');
+  }
+  renderHeader();
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// POS 內場看板整合
+// 讀取 pos/sales_YYYYMM，過濾指定日期（台灣時間），分拆 walkin/online
+// ══════════════════════════════════════════════════════════════════
+function tsToTaiwanDate(ts) {
+  // POS 時間戳為 UTC，加 8 小時轉換為台灣時間取得日期
+  try {
+    const d = new Date(ts);
+    d.setTime(d.getTime() + 8 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  } catch(e) { return ''; }
+}
+
+async function loadKitchenPOS(date) {
+  if (!USE_FIREBASE || !db) return;
+  S.posLoading = true;
+  S.posError = null;
+  refreshKitchen();
+
+  try {
+    const ym = date.replace(/-/g, '').slice(0, 6); // "2026-05-17" → "202605"
+    const doc = await db.collection('pos').doc('sales_' + ym).get();
+
+    if (!doc.exists) {
+      S.posData = {};
+      S.posLoading = false;
+      refreshKitchen();
+      return;
+    }
+
+    const records = doc.data().items || [];
+    const demand = {}; // productName → {walkin:N, online:N}
+
+    records.forEach(record => {
+      if (tsToTaiwanDate(record.ts) !== date) return; // 只取當日台灣時間的記錄
+      const type = record.custType; // 'walkin' | 'online'
+      (record.items || []).forEach(item => {
+        const name = item.name;
+        if (!demand[name]) demand[name] = { walkin: 0, online: 0 };
+        if (type === 'walkin') demand[name].walkin += (item.qty || 0);
+        else                   demand[name].online += (item.qty || 0);
+      });
+    });
+
+    S.posData = demand;
+  } catch(e) {
+    S.posError = e.message;
+    S.posData = {};
+  }
+
+  S.posLoading = false;
+  refreshKitchen();
+}
+
+
+// ── 報表：讀取 POS 銷售資料（依日/週/月過濾）─────────────────────
+async function loadReportPOS(tab) {
+  if (!USE_FIREBASE || !db) return;
+  S.reportPosLoading = true;
+  if (S.page === 'reports') document.getElementById('pg-el').innerHTML = renderReports();
+
+  try {
+    const ym = today().replace(/-/g,'').slice(0,6);
+    // 週報可能跨月，嘗試讀前一個月
+    const prevDate = new Date(); prevDate.setDate(prevDate.getDate()-6);
+    const prevYm = prevDate.toISOString().slice(0,7).replace('-','');
+    const needPrev = tab === 'week' && prevYm !== ym;
+
+    const docs = [db.collection('pos').doc('sales_'+ym).get()];
+    if (needPrev) docs.push(db.collection('pos').doc('sales_'+prevYm).get());
+    const snapshots = await Promise.all(docs);
+
+    let allRecords = [];
+    snapshots.forEach(doc => { if (doc.exists) allRecords = allRecords.concat(doc.data().items||[]); });
+
+    // 日期過濾
+    let filterFn;
+    if (tab === 'day') {
+      filterFn = r => tsToTaiwanDate(r.ts) === today();
+    } else if (tab === 'week') {
+      const d7 = new Date(); d7.setDate(d7.getDate()-6);
+      const d7s = d7.toISOString().slice(0,10);
+      filterFn = r => tsToTaiwanDate(r.ts) >= d7s;
+    } else {
+      const ym_str = today().slice(0,7);
+      filterFn = r => tsToTaiwanDate(r.ts).startsWith(ym_str);
+    }
+
+    const demand = {};
+    allRecords.filter(filterFn).forEach(record => {
+      const type = record.custType;
+      (record.items||[]).forEach(item => {
+        const name = item.name;
+        if (!demand[name]) demand[name] = {walkin:0,online:0,walkinAmt:0,onlineAmt:0};
+        const qty = item.qty||0, price = item.unitPrice||0;
+        if (type === 'walkin') { demand[name].walkin+=qty; demand[name].walkinAmt+=qty*price; }
+        else                   { demand[name].online+=qty; demand[name].onlineAmt+=qty*price; }
+      });
+    });
+    S.reportPosData = demand;
+  } catch(e) {
+    S.reportPosData = {};
+  }
+
+  S.reportPosLoading = false;
+  if (S.page === 'reports') document.getElementById('pg-el').innerHTML = renderReports();
+}
+
+
+// ── 自訂日期：讀取跨月 POS 資料 ──────────────────────────────────
+async function loadPlanPOS() {
+  if (!USE_FIREBASE || !db) return;
+  S.planPosLoading = true;
+  if (S.page === 'reports') document.getElementById('pg-el').innerHTML = renderReports();
+
+  try {
+    // 計算日期範圍涵蓋的月份
+    const months = new Set();
+    const cur = new Date(S.planStart);
+    const end = new Date(S.planEnd);
+    while (cur <= end) {
+      months.add(cur.toISOString().slice(0,7).replace('-',''));
+      cur.setMonth(cur.getMonth()+1);
+    }
+
+    // 並行讀取所有月份
+    const docs = await Promise.all(
+      [...months].map(ym => db.collection('pos').doc('sales_'+ym).get())
+    );
+
+    let allRecords = [];
+    docs.forEach(doc => { if(doc.exists) allRecords = allRecords.concat(doc.data().items||[]); });
+
+    // 過濾日期範圍
+    const demand = {};
+    allRecords.filter(r => {
+      const d = tsToTaiwanDate(r.ts);
+      return d >= S.planStart && d <= S.planEnd;
+    }).forEach(record => {
+      const type = record.custType;
+      (record.items||[]).forEach(item => {
+        const name = item.name;
+        if(!demand[name]) demand[name] = {walkin:0,online:0,walkinAmt:0,onlineAmt:0};
+        const qty = item.qty||0, price = item.unitPrice||0;
+        if(type==='walkin'){demand[name].walkin+=qty;demand[name].walkinAmt+=qty*price;}
+        else               {demand[name].online+=qty;demand[name].onlineAmt+=qty*price;}
+      });
+    });
+    S.planPosData = demand;
+  } catch(e) { S.planPosData = {}; }
+
+  S.planPosLoading = false;
+  if (S.page === 'reports') document.getElementById('pg-el').innerHTML = renderReports();
+}
+
+function refreshKitchen() {
+  if (S.page === 'kitchen')
+    document.getElementById('pg-el').innerHTML = renderKitchen();
+}
+
+// 商品立即推送（不進待同步佇列，因為商品是共用資料）
+async function pushProductsNow() {
+  if (!db) return;
+  try { await db.collection('order_products').doc('main').set({ products: S.products }); }
+  catch (e) { toast('商品同步失敗', 'err'); }
+}
+
+// 刪除訂單：立即寫入 Firebase（刪除是明確的破壞性操作，不需待同步）
+async function deleteFromCloud(id) {
+  if (!db) return;
+  try { await db.collection('orders').doc(id).delete(); }
+  catch (e) { console.error('Delete failed:', e); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 衝突鎖定系統
+// 原理：A 打開訂單編輯時，在 Firebase 寫入 editing_locks/{orderId}
+//       B 嘗試編輯同一筆時，先讀取 lock 文件。
+//       若 lock 未過期（5分鐘）且不是自己，顯示警告並允許強制接管。
+// ══════════════════════════════════════════════════════════════════
+const LOCK_TTL = 5 * 60 * 1000; // 5 分鐘
+
+async function acquireLock(orderId) {
+  if (!db) return { locked: false }; // 無 Firebase = 無鎖定機制
+  const ref = db.collection('editing_locks').doc(orderId);
+  try {
+    const doc = await ref.get();
+    if (doc.exists) {
+      const lock = doc.data();
+      const age = Date.now() - (lock.lockedAt || 0);
+      if (lock.lockedBy !== MY_ID && age < LOCK_TTL) {
+        return { locked: true, by: lock.lockedByName || '其他用戶' };
+      }
+    }
+    await ref.set({ lockedBy: MY_ID, lockedByName: MY_NAME || '操作員', lockedAt: Date.now(), orderId });
+    S.currentLock = orderId;
+    startLockRefresh(orderId);
+    return { locked: false };
+  } catch (e) {
+    return { locked: false }; // 發生錯誤時 fail open，不阻擋使用
+  }
+}
+
+async function forceLock(orderId) {
+  if (!db) return;
+  await db.collection('editing_locks').doc(orderId)
+    .set({ lockedBy: MY_ID, lockedByName: MY_NAME || '操作員', lockedAt: Date.now(), orderId });
+  S.currentLock = orderId;
+  startLockRefresh(orderId);
+}
+
+async function releaseLock(orderId) {
+  if (!db || !orderId) return;
+  stopLockRefresh();
+  try {
+    const ref = db.collection('editing_locks').doc(orderId);
+    const doc = await ref.get();
+    if (doc.exists && doc.data().lockedBy === MY_ID) await ref.delete();
+  } catch (e) {}
+  S.currentLock = null;
+}
+
+// 每 90 秒刷新 lock 時間戳，防止長時間編輯被視為鎖定過期
+function startLockRefresh(id) {
+  stopLockRefresh();
+  S.lockRefreshTimer = setInterval(() => {
+    if (db && S.currentLock === id)
+      db.collection('editing_locks').doc(id).update({ lockedAt: Date.now() }).catch(() => {});
+  }, 90000);
+}
+function stopLockRefresh() {
+  if (S.lockRefreshTimer) { clearInterval(S.lockRefreshTimer); S.lockRefreshTimer = null; }
+}
+
+// 關閉頁面前自動釋放鎖定
+window.addEventListener('beforeunload', () => {
+  if (S.currentLock && db)
+    db.collection('editing_locks').doc(S.currentLock).delete().catch(() => {});
+});
+
+// ══════════════════════════════════════════════════════════════════
+// LOCAL STORAGE（作為 Firebase 的離線快取）
+// ══════════════════════════════════════════════════════════════════
+function loadLocal() {
+  try {
+    const op = localStorage.getItem('hk_products');
+    const oo = localStorage.getItem('hk_orders');
+    const ps = localStorage.getItem('hk_pending');
+    if (op) S.products = JSON.parse(op);
+    if (oo) S.orders   = JSON.parse(oo);
+    if (ps) JSON.parse(ps).forEach(id => S.pendingSync.add(id));
+  } catch (e) {}
+}
+function saveLocal() {
+  try {
+    localStorage.setItem('hk_products', JSON.stringify(S.products));
+    localStorage.setItem('hk_orders',   JSON.stringify(S.orders));
+    localStorage.setItem('hk_pending',  JSON.stringify([...S.pendingSync]));
+  } catch (e) {}
+}
+function markPending(id) { S.pendingSync.add(id); saveLocal(); }
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function today() { return new Date().toISOString().slice(0, 10); }
+function fmtDate(s) { if (!s) return ''; const [y,m,d] = s.split('-'); return `${y}/${m}/${d}`; }
+function fmtMoney(n) { return '$' + Number(n || 0).toLocaleString(); }
+function uid() { return 'o_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
+function pMap() { return Object.fromEntries(S.products.map(p => [p.id, p])); }
+
+function calcOrder(o) {
+  const pm = pMap();
+  const retail = o.retailItems.reduce((s,it) => s + (pm[it.pid]?.price||0)*it.qty, 0);
+  const custom = o.customBoxes.reduce((s,b) => s + b.unitPrice*b.qty, 0);
+  const gift   = o.giftBox ? (Number(o.giftBoxFee)||0) : 0;
+  const ship   = o.deliveryType === '宅配' ? (Number(o.shippingFee)||0) : 0;
+  const total  = retail + custom + gift + ship;
+  const paid   = o.paymentStatus === '已付款' ? total : (Number(o.paidAmount)||0);
+  return { retail, custom, gift, ship, total, balance: total - paid };
+}
+
+function itemsSummary(o) {
+  const pm = pMap();
+  const r = o.retailItems.map(it => `${pm[it.pid]?.name||'?'} x${it.qty}`).join('、');
+  const c = o.customBoxes.map(b => `客製禮盒 x${b.qty}`).join('、');
+  return [r, c].filter(Boolean).join('、') || '（無品項）';
+}
+
+function newOrder() {
+  return { id:uid(), orderDate:today(), customerName:'', phone:'',
+    source:'LINE', deliveryType:'自取', address:'', shippingFee:0,
+    giftBox:false, giftBoxQty:0, giftBoxFee:0, paymentStatus:'未付款', paidAmount:0,
+    status:'正常', notes:'', retailItems:[], customBoxes:[], createdAt:new Date().toISOString() };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ══════════════════════════════════════════════════════════════════
+function render() {
+  renderHeader(); renderNav(); renderFbBar();
+  const el = document.getElementById('pg-el');
+  switch (S.page) {
+    case 'orders':    el.innerHTML = renderOrders();    break;
+    case 'orderForm': el.innerHTML = renderOrderForm(); break;
+    case 'kitchen':   el.innerHTML = renderKitchen();   break;
+    case 'products':  el.innerHTML = renderProducts();  break;
+    case 'reports':   el.innerHTML = renderReports();   break;
+  }
+}
+
+function renderHeader() {
+  const el = document.getElementById('hd-el');
+  const syncBtn = buildSyncBtn();
+  const dotClass = USE_FIREBASE ? ('online-dot' + (S.fbOnline ? '' : ' offline-dot')) : 'online-dot offline-dot';
+
+  if (S.page === 'orderForm') {
+    el.innerHTML = `<div class="hd">
+      <div><div class="hd-brand">半吊子廚房</div><div class="hd-sub">${S.formMode==='new'?'新增訂單':'編輯訂單'}</div></div>
+      <div class="hd-right">${syncBtn}<button class="hd-btn" data-action="goOrders">← 返回</button></div>
+    </div>`;
+  } else {
+    const titles = {orders:'訂單管理',kitchen:'內場看板',products:'商品管理',reports:'統計報表'};
+    el.innerHTML = `<div class="hd">
+      <div><div class="hd-brand">半吊子廚房</div><div class="hd-sub">${titles[S.page]||''}</div></div>
+      <div class="hd-right"><div class="${dotClass}" title="${S.fbOnline?'已連線':'離線'}"></div>${syncBtn}</div>
+    </div>`;
+  }
+}
+
+function buildSyncBtn() {
+  if (!USE_FIREBASE) return '';
+  const n = S.pendingSync.size;
+  if (S.syncStatus === 'syncing')
+    return `<button class="sync-btn sync-syncing" disabled><span class="spinning">🔄</span> 同步中...</button>`;
+  if (n > 0)
+    return `<button class="sync-btn sync-pending" data-action="syncNow">☁️ 同步 (${n})</button>`;
+  return `<button class="sync-btn sync-idle" data-action="syncNow">☁️ 已同步</button>`;
+}
+
+function renderFbBar() {
+  const el = document.getElementById('fb-bar-el');
+  if (!USE_FIREBASE) {
+    el.innerHTML = `<div class="fb-bar">💾 本機模式 — 資料存於此裝置，未連接 Firebase</div>`;
+    return;
+  }
+  if (S.fbError) {
+    el.innerHTML = `<div class="fb-bar err">⚠️ Firebase 錯誤：${S.fbError}</div>`;
+    return;
+  }
+  el.innerHTML = '';
+}
+
+function renderNav() {
+  const tabs = [{k:'orders',icon:'📋',lbl:'訂單'},{k:'kitchen',icon:'🍳',lbl:'看板'},{k:'products',icon:'📦',lbl:'商品'},{k:'reports',icon:'📊',lbl:'報表'}];
+  document.getElementById('nav-el').innerHTML = tabs.map(t => {
+    const on = S.page===t.k || (S.page==='orderForm'&&t.k==='orders');
+    const badge = t.k==='orders'&&S.pendingSync.size>0 ? `<span class="nb-badge">${S.pendingSync.size}</span>` : '';
+    return `<button class="nb${on?' on':''}" data-action="nav" data-page="${t.k}">
+      <span class="ni">${t.icon}</span>${t.lbl}${badge}</button>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAGE: ORDERS
+// ══════════════════════════════════════════════════════════════════
+function renderOrders() {
+  let orders = S.orders.filter(o => {
+    if (S.filterDate && o.orderDate !== S.filterDate) return false;
+    if (S.filterName) { const q=S.filterName.toLowerCase(); if (!o.customerName.toLowerCase().includes(q)&&!o.phone.includes(q)) return false; }
+    if (S.filterStatus !== 'all' && o.status !== S.filterStatus) return false;
+    return true;
+  }).sort((a,b) => b.id.localeCompare(a.id));
+
+  const fbar = `<div class="fbar">
+    <input class="inp" type="date" value="${S.filterDate}" data-action="filterDate">
+    <input class="inp" type="text" placeholder="搜尋姓名/電話" value="${S.filterName}" data-action="filterName">
+    <select class="inp" data-action="filterStatus">
+      <option value="all" ${S.filterStatus==='all'?'selected':''}>全部</option>
+      <option value="正常" ${S.filterStatus==='正常'?'selected':''}>正常</option>
+      <option value="已取消" ${S.filterStatus==='已取消'?'selected':''}>已取消</option>
+    </select>
+  </div>`;
+
+  if (!orders.length) return fbar + `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">無符合條件的訂單</div></div><button class="fab" data-action="newOrder">+</button>`;
+
+  const cards = orders.map(o => {
+    const c = calcOrder(o);
+    const cancelled = o.status==='已取消';
+    const payBdg = o.paymentStatus==='已付款'?'bdg-paid':o.paymentStatus==='未付款'?'bdg-unpaid':'bdg-partial';
+    const pend = S.pendingSync.has(o.id);
+    return `<div class="card" style="${cancelled?'opacity:.6':''}">
+      <div class="oc-hd">
+        <div>
+          <div class="oc-name">${o.customerName}${o.deliveryType==='宅配'?' <span class="bdg bdg-ship">宅配</span>':''}${pend?' <span class="bdg bdg-pending">待同步</span>':''}</div>
+          <div class="oc-date">出貨 ${fmtDate(o.orderDate)}・${o.source}</div>
+        </div>
+        <span class="bdg ${o.status==='正常'?'bdg-ok':'bdg-cancel'}">${o.status}</span>
+      </div>
+      <div class="oc-items">${itemsSummary(o)}</div>
+      ${o.giftBox?`<div class="oc-detail">🎁 禮盒 x${o.giftBoxQty}</div>`:''}
+      ${o.notes?`<div class="oc-detail">📝 ${o.notes}</div>`:''}
+      <div class="oc-row">
+        <span class="oc-total">${fmtMoney(c.total)}</span>
+        <span class="bdg ${payBdg}">${o.paymentStatus}</span>
+        ${c.balance>0?`<span class="chip">尾款 ${fmtMoney(c.balance)}</span>`:''}
+      </div>
+      <div class="oc-acts">
+        ${!cancelled?`<button class="btn btn-out btn-sm" data-action="editOrder" data-id="${o.id}">✏️ 編輯</button>`:''}
+        ${!cancelled?`<button class="btn btn-out btn-sm" data-action="cancelOrder" data-id="${o.id}">取消</button>`:''}
+        <button class="btn btn-err btn-sm" data-action="deleteOrder" data-id="${o.id}">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return fbar + `<div class="pt"></div>` + cards + `<button class="fab" data-action="newOrder">+</button>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAGE: ORDER FORM
+// ══════════════════════════════════════════════════════════════════
+function renderOrderForm() {
+  const o = S.form; if (!o) return '';
+  const c = calcOrder(o);
+  const pm = pMap();
+  const activeP = S.products.filter(p => p.active);
+
+  const lockWarn = o._lockWarnBy
+    ? `<div class="lock-warn">⚠️ 此訂單已由 <strong>${o._lockWarnBy}</strong> 接管</div>` : '';
+
+  const retailRows = o.retailItems.map((it,i) => {
+    const p = pm[it.pid];
+    return `<div class="item-row">
+      <select class="inp item-sel" data-action="retailPid" data-idx="${i}">
+        <option value="">選擇品項</option>
+        ${activeP.map(p=>`<option value="${p.id}"${it.pid===p.id?' selected':''}>${p.name}</option>`).join('')}
+      </select>
+      <input class="inp item-qty" type="number" min="0" value="${it.qty}" data-action="retailQty" data-idx="${i}">
+      <div class="item-info">${p?p.conv*it.qty+p.cu:''}<br>${p?fmtMoney(p.price*it.qty):''}</div>
+      <button class="item-del" data-action="removeRetail" data-idx="${i}">×</button>
+    </div>`;
+  }).join('');
+
+  const cboxes = o.customBoxes.map((b,bi) => `
+    <div class="cbox-row">
+      <div class="box-hd"><span class="box-hd-title">客製禮盒 #${bi+1}</span>
+        <button class="btn btn-err btn-sm" data-action="removeBox" data-idx="${bi}">移除</button></div>
+      <div class="fld"><label class="lbl">品項（顆/片數）</label>
+        ${b.items.map((it,ii)=>`<div class="item-row">
+          <select class="inp item-sel" data-action="boxPid" data-bi="${bi}" data-ii="${ii}">
+            <option value="">選品項</option>
+            ${activeP.map(p=>`<option value="${p.id}"${it.pid===p.id?' selected':''}>${p.name}</option>`).join('')}
+          </select>
+          <input class="inp item-qty" type="number" min="0" value="${it.qty}" placeholder="${pm[it.pid]?.cu||'數量'}" data-action="boxItemQty" data-bi="${bi}" data-ii="${ii}">
+          <button class="item-del" data-action="removeBoxItem" data-bi="${bi}" data-ii="${bi+'-'+ii}">×</button>
+        </div>`).join('')}
+        <button class="btn btn-out btn-sm" data-action="addBoxItem" data-bi="${bi}">＋ 加品項</button>
+      </div>
+      <div class="row">
+        <div class="fld"><label class="lbl">單盒報價</label>
+          <input class="inp" type="number" min="0" value="${b.unitPrice}" data-action="boxPrice" data-bi="${bi}"></div>
+        <div class="fld"><label class="lbl">盒數</label>
+          <input class="inp" type="number" min="1" value="${b.qty}" data-action="boxQty" data-bi="${bi}"></div>
+      </div>
+      <div style="font-size:13px;color:var(--txt2);text-align:right">小計 ${fmtMoney(b.unitPrice*b.qty)}</div>
+    </div>`).join('');
+
+  return `${lockWarn}
+  <div class="sec-hd">基本資料</div>
+  <div class="card">
+    <div class="fld"><label class="lbl">出貨日期 *</label>
+      <input class="inp" type="date" value="${o.orderDate}" data-action="fld" data-key="orderDate"></div>
+    <div class="row">
+      <div class="fld"><label class="lbl">客人姓名 *</label>
+        <input class="inp" type="text" value="${o.customerName}" placeholder="王小明" data-action="fld" data-key="customerName"></div>
+      <div class="fld"><label class="lbl">聯絡電話 *</label>
+        <input class="inp" type="tel" value="${o.phone}" placeholder="0912345678" data-action="fld" data-key="phone"></div>
+    </div>
+    <div class="fld"><label class="lbl">訂單來源 *</label>
+      <div class="rg">${['LINE','電話','現場','其他'].map(s=>`<div class="rp${o.source===s?' on':''}" data-action="setSource" data-val="${s}">${s}</div>`).join('')}</div></div>
+    <div class="fld"><label class="lbl">取貨方式 *</label>
+      <div class="rg">
+        <div class="rp${o.deliveryType==='自取'?' on':''}" data-action="setDelivery" data-val="自取">🏪 自取</div>
+        <div class="rp${o.deliveryType==='宅配'?' on':''}" data-action="setDelivery" data-val="宅配">📦 宅配</div>
+      </div></div>
+    ${o.deliveryType==='宅配'?`
+    <div class="fld"><label class="lbl">宅配地址</label>
+      <input class="inp" type="text" value="${o.address||''}" placeholder="縣市＋詳細地址" data-action="fld" data-key="address"></div>
+    <div class="fld"><label class="lbl">宅配費用</label>
+      <input class="inp" type="number" min="0" value="${o.shippingFee||0}" data-action="fld" data-key="shippingFee"></div>`:''}
+  </div>
+  <div class="sec-hd">訂購品項</div>
+  <div class="card">
+    <div class="box-hd"><span class="box-hd-title">🛒 零售品項（模式 A）</span></div>
+    ${retailRows}
+    <button class="btn btn-out btn-sm" data-action="addRetail">＋ 加品項</button>
+  </div>
+  <div class="card">
+    <div class="box-hd"><span class="box-hd-title">🎁 客製化禮盒（模式 B）</span></div>
+    ${cboxes}
+    <button class="btn btn-out btn-sm" data-action="addBox">＋ 新增禮盒</button>
+  </div>
+  <div class="sec-hd">加購與備註</div>
+  <div class="card">
+    <div class="fld"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+      <input type="checkbox" ${o.giftBox?'checked':''} data-action="fld" data-key="giftBox" data-type="bool"> 加購禮盒／提盒</label></div>
+    ${o.giftBox?`<div class="row">
+      <div class="fld"><label class="lbl">數量</label><input class="inp" type="number" min="1" value="${o.giftBoxQty||1}" data-action="fld" data-key="giftBoxQty"></div>
+      <div class="fld"><label class="lbl">費用</label><input class="inp" type="number" min="0" value="${o.giftBoxFee||0}" data-action="fld" data-key="giftBoxFee"></div>
+    </div>`:''}
+    <div class="fld"><label class="lbl">備註</label>
+      <textarea class="inp" placeholder="特殊需求..." data-action="fld" data-key="notes">${o.notes||''}</textarea></div>
+  </div>
+  <div class="sec-hd">付款資訊</div>
+  <div class="card">
+    <div class="fld"><label class="lbl">付款狀態 *</label>
+      <div class="rg">${['已付款','未付款','部分付款'].map(s=>`<div class="rp${o.paymentStatus===s?' on':''}" data-action="setPayStatus" data-val="${s}">${s}</div>`).join('')}</div></div>
+    ${o.paymentStatus==='部分付款'?`<div class="fld"><label class="lbl">已付金額</label>
+      <input class="inp" type="number" min="0" value="${o.paidAmount||0}" data-action="fld" data-key="paidAmount"></div>`:''}
+    <hr class="divider">
+    <div class="sum-row"><span>零售小計</span><span>${fmtMoney(c.retail)}</span></div>
+    ${c.custom?`<div class="sum-row"><span>客製禮盒</span><span>${fmtMoney(c.custom)}</span></div>`:''}
+    ${o.giftBox?`<div class="sum-row"><span>禮盒費用</span><span>${fmtMoney(c.gift)}</span></div>`:''}
+    ${o.deliveryType==='宅配'?`<div class="sum-row"><span>宅配費</span><span>${fmtMoney(c.ship)}</span></div>`:''}
+    <div class="sum-row sum-total"><span>訂單總金額</span><span>${fmtMoney(c.total)}</span></div>
+    ${c.balance>0?`<div class="sum-row" style="color:var(--err)"><span>應付尾款</span><span>${fmtMoney(c.balance)}</span></div>`:''}
+  </div>
+  <div style="position:sticky;bottom:calc(var(--nav) + 12px);z-index:10;margin:0 14px 16px">
+    <button class="btn btn-pri btn-blk" data-action="saveOrder" style="padding:14px;font-size:15px;letter-spacing:.3px;box-shadow:0 4px 16px rgba(92,51,23,.35)">
+      💾 儲存${USE_FIREBASE?' → 加入待同步':''}
+    </button>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAGE: KITCHEN
+// ══════════════════════════════════════════════════════════════════
+function renderKitchen() {
+  const pm = pMap();
+  const pByName = Object.fromEntries(S.products.map(p => [p.name, p]));
+
+  // 來源一：新預訂系統
+  const orders = S.orders.filter(o => o.orderDate === S.kitchenDate && o.status === '正常');
+  const preDemand = {};
+  orders.forEach(o => {
+    o.retailItems.forEach(it => {
+      const p = pm[it.pid]; if (!p) return;
+      preDemand[it.pid] = (preDemand[it.pid] || 0) + p.conv * it.qty;
+    });
+    o.customBoxes.forEach(b => b.items.forEach(it => {
+      preDemand[it.pid] = (preDemand[it.pid] || 0) + it.qty;
+    }));
+  });
+
+  // 來源二：POS（S.posData 由 loadKitchenPOS 填入）
+  const posWalkin = {};
+  const posOnline = {};
+  const posOther  = {};
+  Object.entries(S.posData).forEach(([name, data]) => {
+    const p = pByName[name];
+    if (p) {
+      posWalkin[p.id] = (posWalkin[p.id] || 0) + p.conv * data.walkin;
+      posOnline[p.id] = (posOnline[p.id] || 0) + p.conv * data.online;
+    } else if (data.walkin > 0 || data.online > 0) {
+      posOther[name] = data;
+    }
+  });
+
+  const allPids = [...new Set([
+    ...Object.keys(preDemand),
+    ...Object.keys(posWalkin),
+    ...Object.keys(posOnline)
+  ])];
+
+  // 狀態提示
+  const fbMsg = !USE_FIREBASE
+    ? `<div class="warn-box" style="margin-top:0">💾 本機模式：POS 欄位需連接 Firebase 才會顯示</div>`
+    : S.posLoading
+      ? `<div class="warn-box" style="margin-top:0;color:var(--acc)">⏳ 正在讀取 POS 銷售資料...</div>`
+      : S.posError
+        ? `<div class="warn-box" style="margin-top:0;color:var(--err)">⚠️ POS 讀取錯誤：${S.posError}</div>`
+        : '';
+
+  const top = `<div class="kh">
+    <div class="kh-title">🍳 內場看板</div>
+    <div class="kh-date-row">
+      <span class="kh-date">${fmtDate(S.kitchenDate)}</span>
+      <input class="kh-inp" type="date" value="${S.kitchenDate}" data-action="kitchenDate">
+    </div>
+  </div>${fbMsg}`;
+
+  if (!allPids.length && !Object.keys(posOther).length) {
+    return top + `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">今日無需求資料</div></div>`;
+  }
+
+  const colHd = `<div style="display:flex;justify-content:flex-end;gap:8px;padding:6px 0 4px;font-size:10px;color:var(--txt2);border-bottom:1px solid var(--bg2)">
+    <div style="min-width:54px;text-align:center">預訂</div>
+    <div style="min-width:54px;text-align:center">POS現場</div>
+    <div style="min-width:54px;text-align:center;color:#4A90D9">POS線上</div>
+    <div style="min-width:60px;text-align:right;color:var(--pri);font-weight:600">合計</div>
+  </div>`;
+
+  let html = top;
+  ['雪球系列','手工餅乾系列','磅蛋糕系列'].forEach(cat => {
+    const catPids = allPids.filter(pid => pm[pid]?.cat === cat);
+    if (!catPids.length) return;
+    html += `<div class="sec-hd">${cat}</div><div class="card" style="padding:8px 16px">${colHd}`;
+    catPids.forEach(pid => {
+      const p   = pm[pid];
+      const pre = preDemand[pid]  || 0;
+      const wlk = posWalkin[pid]  || 0;
+      const onl = posOnline[pid]  || 0;
+      const tot = pre + wlk + onl;
+      const v = (n, color) => n
+        ? `<span style="font-size:13px;font-weight:500;color:${color}">${n}<span style="font-size:10px;margin-left:1px">${p.cu}</span></span>`
+        : `<span style="font-size:13px;color:var(--bdr)">—</span>`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg2);gap:8px">
+        <div style="font-size:14px;font-weight:500;flex:1">${p.name}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="min-width:54px;text-align:center">${v(pre,'var(--pri)')}</div>
+          <div style="min-width:54px;text-align:center">${v(wlk,'var(--txt2)')}</div>
+          <div style="min-width:54px;text-align:center">${v(onl,'#4A90D9')}</div>
+          <div style="min-width:60px;text-align:right;font-size:15px;font-weight:700;color:var(--pri)">${tot} ${p.cu}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  if (Object.keys(posOther).length) {
+    html += `<div class="sec-hd">POS 其他品項</div><div class="card" style="padding:8px 16px">${colHd}`;
+    Object.entries(posOther).forEach(([name, data]) => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg2);gap:8px">
+        <div style="font-size:14px;font-weight:500;flex:1">${name}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="min-width:54px;text-align:center"><span style="color:var(--bdr)">—</span></div>
+          <div style="min-width:54px;text-align:center"><span style="font-size:13px;color:var(--txt2)">${data.walkin||'—'}</span></div>
+          <div style="min-width:54px;text-align:center"><span style="font-size:13px;color:#4A90D9">${data.online||'—'}</span></div>
+          <div style="min-width:60px;text-align:right;font-size:15px;font-weight:700;color:var(--pri)">${data.walkin+data.online} 個</div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  return html;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAGE: PRODUCTS
+// ══════════════════════════════════════════════════════════════════
+function renderProducts() {
+  const cats = ['雪球系列','手工餅乾系列','磅蛋糕系列'];
+  let editForm = '';
+  if (S.prodForm) {
+    const f = S.prodForm;
+    editForm = `<div class="card" style="background:var(--acc2);border:1px solid var(--acc)">
+      <div style="font-weight:500;margin-bottom:12px;font-size:14px;color:var(--pri)">${f.id?'編輯':'新增'}商品</div>
+      <div class="row">
+        <div class="fld"><label class="lbl">品名</label><input class="inp" value="${f.name||''}" placeholder="品名" data-action="pf" data-key="name"></div>
+        <div class="fld"><label class="lbl">包裝單位</label>
+          <select class="inp" data-action="pf" data-key="unit">
+            <option ${f.unit==='罐'?'selected':''}>罐</option><option ${f.unit==='條'?'selected':''}>條</option><option ${f.unit==='盒'?'selected':''}>盒</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div class="fld"><label class="lbl">單價</label><input class="inp" type="number" min="0" value="${f.price||''}" data-action="pf" data-key="price"></div>
+        <div class="fld"><label class="lbl">換算數量</label><input class="inp" type="number" min="1" value="${f.conv||''}" data-action="pf" data-key="conv"></div>
+      </div>
+      <div class="row">
+        <div class="fld"><label class="lbl">換算單位</label>
+          <select class="inp" data-action="pf" data-key="cu"><option ${f.cu==='顆'?'selected':''}>顆</option><option ${f.cu==='片'?'selected':''}>片</option></select></div>
+        <div class="fld"><label class="lbl">分類</label>
+          <select class="inp" data-action="pf" data-key="cat">${cats.map(c=>`<option ${f.cat===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-pri" data-action="saveProd">儲存</button>
+        <button class="btn btn-out" data-action="cancelProd">取消</button>
+      </div></div>`;
+  }
+  let html = `<div class="pt"></div>${editForm}
+    ${!S.prodForm?`<div class="mx mb"><button class="btn btn-acc btn-blk" data-action="newProd">＋ 新增商品</button></div>`:''}`;
+  cats.forEach(cat => {
+    const prods = S.products.filter(p => p.cat === cat); if (!prods.length) return;
+    html += `<div class="sec-hd">${cat}</div>`;
+    prods.forEach(p => {
+      html += `<div class="pr${p.active?'':' inactive'}">
+        <div class="pr-info">
+          <div class="pr-name">${p.name}${!p.active?' <span class="bdg bdg-cancel">停用</span>':''}</div>
+          <div class="pr-meta">1${p.unit} = ${fmtMoney(p.price)}・${p.conv}${p.cu}</div>
+        </div>
+        <button class="btn btn-out btn-sm" data-action="editProd" data-id="${p.id}">✏️</button>
+        <button class="btn btn-out btn-sm" data-action="toggleProd" data-id="${p.id}">${p.active?'停用':'啟用'}</button>
+      </div>`;
+    });
+  });
+  return html;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAGE: REPORTS
+// ══════════════════════════════════════════════════════════════════
+function renderReports() {
+  const pm = pMap(), t = S.reportTab;
+  const pByName = Object.fromEntries(S.products.map(p=>[p.name,p]));
+
+  // ── 自訂日期規劃頁 ──────────────────────────────────────────────
+  if (t === 'plan') {
+    // 訂單系統資料
+    const filtered = S.orders.filter(o =>
+      o.status==='正常' && o.orderDate>=S.planStart && o.orderDate<=S.planEnd
+    );
+
+    // 統計每個品項的 罐數 + 顆/片數
+    const demand = {}; // pid → {name, unit, cu, conv, qty罐, pieces顆片, amount}
+    filtered.forEach(o => {
+      o.retailItems.forEach(it => {
+        const p = pm[it.pid]; if(!p) return;
+        if(!demand[it.pid]) demand[it.pid] = {name:p.name,unit:p.unit,cu:p.cu,conv:p.conv,cat:p.cat,qty:0,pieces:0,amount:0};
+        demand[it.pid].qty    += it.qty;
+        demand[it.pid].pieces += it.qty * p.conv;
+        demand[it.pid].amount += it.qty * p.price;
+      });
+      o.customBoxes.forEach(b => {
+        b.items.forEach(it => {
+          const p = pm[it.pid]; if(!p) return;
+          if(!demand[it.pid]) demand[it.pid] = {name:p.name,unit:p.unit,cu:p.cu,conv:p.conv,cat:p.cat,qty:0,pieces:0,amount:0};
+          demand[it.pid].pieces += it.qty; // 客製盒已是顆/片
+        });
+      });
+    });
+
+    // POS 資料
+    const posStatus = !USE_FIREBASE
+      ? '<div style="font-size:12px;color:var(--txt2);margin:8px 0">💾 本機模式：連接 Firebase 後可顯示 POS 資料</div>'
+      : S.planPosLoading
+        ? '<div style="font-size:12px;color:var(--acc);margin:8px 0">⏳ 讀取 POS 資料中...</div>'
+        : '';
+
+    // POS 品項 by name
+    const posDemand = {}; // name → {walkin, online, cu, piecesW, piecesO}
+    if(USE_FIREBASE && !S.planPosLoading) {
+      Object.entries(S.planPosData).forEach(([name, d]) => {
+        const p = pByName[name];
+        posDemand[name] = {
+          walkin:d.walkin, online:d.online, cat:p?p.cat:'POS其他',
+          conv:p?p.conv:1, cu:p?p.cu:'個',
+          piecesW:p?d.walkin*p.conv:d.walkin,
+          piecesO:p?d.online*p.conv:d.online,
+        };
+      });
+    }
+
+    const allCats = ['雪球系列','手工餅乾系列','磅蛋糕系列'];
+    const totalOrder = filtered.reduce((s,o)=>s+calcOrder(o).total,0);
+
+    // 顆/片 各類合計
+    const pieceSum = {order:{}, pos:{}};
+    Object.values(demand).forEach(d => {
+      if(!pieceSum.order[d.cu]) pieceSum.order[d.cu]=0;
+      pieceSum.order[d.cu] += d.pieces;
+    });
+    Object.values(posDemand).forEach(d => {
+      if(!pieceSum.pos[d.cu]) pieceSum.pos[d.cu]=0;
+      pieceSum.pos[d.cu] += d.piecesW + d.piecesO;
+    });
+
+    // 整合各類合計（顆 + 片）
+    const allUnits = new Set([...Object.keys(pieceSum.order),...Object.keys(pieceSum.pos)]);
+    const grandPieces = [...allUnits].map(cu => {
+      const tot = (pieceSum.order[cu]||0) + (pieceSum.pos[cu]||0);
+      return tot ? `<span style="font-size:22px;font-weight:700;color:var(--pri);margin-right:12px">${tot}<span style="font-size:14px;margin-left:2px">${cu}</span></span>` : '';
+    }).join('');
+
+    // 品項明細列表
+    let rows = '';
+    allCats.forEach(cat => {
+      const orderItems = Object.entries(demand).filter(([,d])=>d.cat===cat);
+      const posItems   = Object.entries(posDemand).filter(([,d])=>d.cat===cat);
+      const allNames = new Set([...orderItems.map(([,d])=>d.name), ...posItems.map(([n])=>n)]);
+      if(!allNames.size) return;
+
+      rows += `<div style="font-size:12px;font-weight:700;color:var(--pri);padding:12px 0 6px;border-top:1px solid var(--bg2);letter-spacing:.5px">${cat}</div>`;
+      allNames.forEach(name => {
+        const od = Object.values(demand).find(d=>d.name===name) || {qty:0,pieces:0,cu:'顆',unit:'罐'};
+        const pd = posDemand[name] || {piecesW:0,piecesO:0,cu:od.cu};
+        const cu = od.cu || pd.cu;
+        const totalPieces = od.pieces + pd.piecesW + pd.piecesO;
+        if(!totalPieces) return;
+
+        const posBreakdown = (USE_FIREBASE && !S.planPosLoading && (pd.piecesW||pd.piecesO))
+          ? `<span style="font-size:11px;color:var(--txt2)">（現場 ${pd.piecesW}、線上 ${pd.piecesO}）</span>`
+          : '';
+
+        rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg2)">
+          <div>
+            <div style="font-size:15px;font-weight:600">${name}</div>
+            ${od.qty?`<div style="font-size:11px;color:var(--txt2);margin-top:2px">預訂 ${od.qty}${od.unit}</div>`:''}
+            ${posBreakdown?`<div style="font-size:11px;color:var(--txt2);margin-top:1px">POS ${posBreakdown}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:16px">
+            <div style="font-size:22px;font-weight:700;color:var(--pri)">${totalPieces}</div>
+            <div style="font-size:12px;color:var(--txt2)">${cu}</div>
+          </div>
+        </div>`;
+      });
+    });
+
+    // POS 其他品項（禮盒等）
+    const posOther = Object.entries(posDemand).filter(([,d])=>d.cat==='POS其他');
+    if(posOther.length) {
+      rows += `<div style="font-size:12px;font-weight:700;color:var(--pri);padding:12px 0 6px;border-top:1px solid var(--bg2);letter-spacing:.5px">POS 其他品項</div>`;
+      posOther.forEach(([name,d]) => {
+        const tot = d.piecesW + d.piecesO;
+        rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg2)">
+          <div>
+            <div style="font-size:15px;font-weight:600">${name}</div>
+            <div style="font-size:11px;color:var(--txt2);margin-top:2px">現場 ${d.walkin} + 線上 ${d.online}</div>
+          </div>
+          <div style="text-align:right;margin-left:16px">
+            <div style="font-size:22px;font-weight:700;color:var(--pri)">${tot}</div>
+            <div style="font-size:12px;color:var(--txt2)">個</div>
+          </div>
+        </div>`;
+      });
+    }
+
+    return `
+    <div class="seg">
+      <button class="sb" data-action="reportTab" data-val="day">日報</button>
+      <button class="sb" data-action="reportTab" data-val="week">週報</button>
+      <button class="sb" data-action="reportTab" data-val="month">月報</button>
+      <button class="sb on" data-action="reportTab" data-val="plan">📅 規劃</button>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:10px;font-weight:500">查詢日期範圍</div>
+      <div class="row">
+        <div class="fld"><label class="lbl">開始日期</label>
+          <input class="inp" type="date" value="${S.planStart}" data-action="planStart"></div>
+        <div class="fld"><label class="lbl">結束日期</label>
+          <input class="inp" type="date" value="${S.planEnd}" data-action="planEnd"></div>
+      </div>
+      <div style="font-size:12px;color:var(--txt2)">${fmtDate(S.planStart)} ～ ${fmtDate(S.planEnd)}，共 ${filtered.length} 筆訂單</div>
+    </div>
+
+    <div class="card" style="background:var(--bg2);border:none;box-shadow:none">
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:8px;font-weight:600;letter-spacing:.5px">需求總量</div>
+      <div>${grandPieces || '<span style="color:var(--txt2);font-size:14px">本期無資料</span>'}</div>
+    </div>
+
+    <div class="sec-hd">各品項需求明細</div>
+    <div class="card" style="padding:8px 16px">
+      ${posStatus}
+      ${rows || '<div style="text-align:center;padding:20px;color:var(--txt2);font-size:14px">本期無需求資料</div>'}
+    </div>
+    `;
+  }
+
+  // ── 日 / 週 / 月 報表（原有邏輯）──────────────────────────────
+  let filtered = S.orders.filter(o => o.status === '正常'), title = '';
+  if (t==='day') { filtered=filtered.filter(o=>o.orderDate===today()); title='今日'; }
+  else if (t==='week') { const d7=new Date();d7.setDate(d7.getDate()-6);filtered=filtered.filter(o=>o.orderDate>=d7.toISOString().slice(0,10));title='近 7 天'; }
+  else { filtered=filtered.filter(o=>o.orderDate.startsWith(today().slice(0,7)));title='本月'; }
+
+  const total=filtered.reduce((s,o)=>s+calcOrder(o).total,0), cnt=filtered.length;
+  const paidCnt=filtered.filter(o=>o.paymentStatus==='已付款').length;
+  const unpaidCnt=filtered.filter(o=>o.paymentStatus==='未付款').length;
+  const partialCnt=filtered.filter(o=>o.paymentStatus==='部分付款').length;
+  const unpaidAmt=filtered.reduce((s,o)=>s+calcOrder(o).balance,0);
+  const srcMap={};filtered.forEach(o=>{srcMap[o.source]=(srcMap[o.source]||0)+1;});
+
+  // 整合銷售明細
+  const orderSales = {};
+  filtered.forEach(o => {
+    o.retailItems.forEach(it => {
+      const p = pm[it.pid]; if(!p) return;
+      if(!orderSales[p.name]) orderSales[p.name] = {qty:0,amount:0,unit:p.unit,cat:p.cat};
+      orderSales[p.name].qty    += it.qty;
+      orderSales[p.name].amount += it.qty * p.price;
+    });
+    o.customBoxes.forEach(b => {
+      if(!orderSales['客製化禮盒']) orderSales['客製化禮盒'] = {qty:0,amount:0,unit:'盒',cat:'客製'};
+      orderSales['客製化禮盒'].qty    += b.qty;
+      orderSales['客製化禮盒'].amount += b.unitPrice * b.qty;
+    });
+  });
+
+  const posLoaded = USE_FIREBASE && !S.reportPosLoading;
+  const posSales  = {};
+  if (posLoaded) {
+    Object.entries(S.reportPosData).forEach(([name,d]) => {
+      posSales[name] = {walkinQty:d.walkin,onlineQty:d.online,walkinAmt:d.walkinAmt,onlineAmt:d.onlineAmt};
+    });
+  }
+
+  const allNames = [...new Set([...Object.keys(orderSales),...Object.keys(posSales)])];
+  const orderTotal = filtered.reduce((s,o)=>s+calcOrder(o).total,0);
+  const posTotal   = Object.values(posSales).reduce((s,d)=>s+d.walkinAmt+d.onlineAmt,0);
+  const grandTotal = orderTotal + posTotal;
+
+  const colStyle = 'min-width:72px;text-align:right;font-size:13px';
+  const tableHd = `<div style="display:flex;gap:4px;padding:6px 0;border-bottom:2px solid var(--bdr);font-size:11px;color:var(--txt2);font-weight:600">
+    <div style="flex:1">品項</div>
+    <div style="${colStyle};color:var(--pri)">預訂系統</div>
+    ${USE_FIREBASE?`<div style="${colStyle};color:var(--txt2)">POS現場</div><div style="${colStyle};color:#4A90D9">POS線上</div>`:''}
+    <div style="${colStyle};color:var(--pri);font-weight:700">合計金額</div>
+  </div>`;
+
+  let salesRows = '';
+  let hasData = false;
+  const posStatusMsg = !USE_FIREBASE
+    ? `<div style="font-size:12px;color:var(--txt2);padding:8px 0">💾 本機模式：連接 Firebase 後可顯示 POS 資料</div>`
+    : S.reportPosLoading
+      ? `<div style="font-size:12px;color:var(--acc);padding:8px 0">⏳ 正在讀取 POS 銷售資料...</div>`
+      : '';
+
+  ['雪球系列','手工餅乾系列','磅蛋糕系列','客製','POS其他'].forEach(cat => {
+    const catLabel = cat==='客製'?'客製化禮盒':cat==='POS其他'?'POS 其他品項':cat;
+    const names = allNames.filter(name => {
+      const p = pByName[name];
+      const oc = orderSales[name]?.cat;
+      return (p?p.cat:oc||'POS其他') === cat;
+    });
+    if(!names.length) return;
+    salesRows += `<div style="font-size:12px;font-weight:600;color:var(--pri);padding:10px 0 4px;border-top:1px solid var(--bg2);margin-top:4px">${catLabel}</div>`;
+    names.forEach(name => {
+      const o   = orderSales[name] || {qty:0,amount:0};
+      const pos = posSales[name]   || {walkinQty:0,onlineQty:0,walkinAmt:0,onlineAmt:0};
+      const p   = pByName[name];
+      const totalAmt = o.amount + pos.walkinAmt + pos.onlineAmt;
+      if(!totalAmt && !o.qty) return;
+      hasData = true;
+      const unit = p?.unit || '個';
+      const cell = (qty, amt, color) => qty
+        ? '<div style="font-size:13px;font-weight:500;color:'+color+'">'+qty+unit+'<br><span style="font-size:11px;opacity:.7">'+fmtMoney(amt)+'</span></div>'
+        : '<div style="font-size:13px;color:var(--bdr)">—</div>';
+      const posExtra = USE_FIREBASE
+        ? '<div style="'+colStyle+';color:var(--txt2)">'+cell(pos.walkinQty,pos.walkinAmt,'var(--txt2)')+'</div>'
+          +'<div style="'+colStyle+';color:#4A90D9">'+cell(pos.onlineQty,pos.onlineAmt,'#4A90D9')+'</div>'
+        : '';
+      salesRows += '<div style="display:flex;gap:4px;padding:7px 0;border-bottom:1px solid var(--bg2);align-items:center">'
+        +'<div style="flex:1;font-size:13px">'+name+'</div>'
+        +'<div style="'+colStyle+';color:var(--pri)">'+cell(o.qty,o.amount,'var(--pri)')+'</div>'
+        +posExtra
+        +'<div style="'+colStyle+';font-weight:700;color:var(--pri)">'+fmtMoney(totalAmt)+'</div>'
+        +'</div>';
+    });
+  });
+
+  return `
+  <div class="seg">
+    <button class="sb${t==='day'?' on':''}" data-action="reportTab" data-val="day">日報</button>
+    <button class="sb${t==='week'?' on':''}" data-action="reportTab" data-val="week">週報</button>
+    <button class="sb${t==='month'?' on':''}" data-action="reportTab" data-val="month">月報</button>
+    <button class="sb" data-action="reportTab" data-val="plan">📅 規劃</button>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-box"><div class="stat-num">${cnt}</div><div class="stat-lbl">${title}預訂筆數</div></div>
+    <div class="stat-box"><div class="stat-num">${fmtMoney(grandTotal)}</div><div class="stat-lbl">${title}總收入</div></div>
+    <div class="stat-box"><div class="stat-num">${fmtMoney(orderTotal)}</div><div class="stat-lbl">預訂系統</div></div>
+    <div class="stat-box" style="background:#EEF4FF"><div class="stat-num" style="color:#4A90D9">${fmtMoney(posTotal)}</div><div class="stat-lbl">POS 銷售</div></div>
+  </div>
+
+  <div class="sec-hd">各品項整合銷售明細</div>
+  <div class="card" style="padding:12px 16px">
+    ${posStatusMsg}
+    ${tableHd}
+    ${hasData ? salesRows : '<div style="text-align:center;padding:20px;color:var(--txt2);font-size:14px">本期無銷售資料</div>'}
+    <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:700;font-size:14px;border-top:2px solid var(--bdr);margin-top:4px">
+      <span>合計</span><span style="color:var(--pri)">${fmtMoney(grandTotal)}</span>
+    </div>
+  </div>
+
+  <div class="sec-hd">付款狀態（預訂系統）</div>
+  <div class="card" style="display:flex;gap:16px;flex-wrap:wrap">
+    <div>已付款<br><strong>${paidCnt}</strong> 筆</div>
+    <div>未付款<br><strong style="color:var(--err)">${unpaidCnt}</strong> 筆</div>
+    <div>部分付款<br><strong style="color:var(--warn)">${partialCnt}</strong> 筆</div>
+    ${unpaidAmt>0?`<div>待收款<br><strong style="color:var(--err)">${fmtMoney(unpaidAmt)}</strong></div>`:''}
+  </div>
+
+  <div class="sec-hd">訂單來源</div>
+  <div class="card" style="display:flex;gap:16px;flex-wrap:wrap">
+    ${Object.entries(srcMap).map(([k,v])=>`<div>${k}<br><strong>${v}</strong> 筆</div>`).join('')||'—'}
+  </div>
+
+  ${filtered.length?`<div class="mx mb"><button class="btn btn-out btn-blk" data-action="exportCSV">📥 匯出 CSV</button></div>`:''}`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ══════════════════════════════════════════════════════════════════
+document.getElementById('app').addEventListener('click', async e => {
+  const el = e.target.closest('[data-action]'); if (!el) return;
+  const a = el.dataset.action;
+
+  // 導覽
+  if (a==='nav') { if(S.currentLock) await releaseLock(S.currentLock); S.page=el.dataset.page; S.form=null; render(); if(el.dataset.page==='kitchen') loadKitchenPOS(S.kitchenDate); if(el.dataset.page==='reports') loadReportPOS(S.reportTab); return; }
+  if (a==='goOrders') { if(S.currentLock) await releaseLock(S.currentLock); S.page='orders'; S.form=null; render(); return; }
+
+  // 手動同步
+  if (a==='syncNow') { await syncToCloud(); return; }
+
+  // 新增訂單
+  if (a==='newOrder') { S.form=newOrder(); S.formMode='new'; S.page='orderForm'; render(); return; }
+
+  // 編輯訂單（衝突鎖定檢查）
+  if (a==='editOrder') {
+    const o = S.orders.find(x => x.id === el.dataset.id); if (!o) return;
+    const result = await acquireLock(o.id);
+    if (result.locked) {
+      showConfirm(
+        `⚠️ 此訂單目前由 <strong>${result.by}</strong> 正在編輯中。<br><br>確定要強制接管嗎？原編輯者的未儲存變更將會遺失。`,
+        async () => {
+          await forceLock(o.id);
+          const copy = JSON.parse(JSON.stringify(o));
+          copy._lockWarnBy = result.by;
+          S.form=copy; S.formMode='edit'; S.page='orderForm';
+          closeModal(); render();
+        }, '強制接管'
+      );
+      return;
+    }
+    S.form=JSON.parse(JSON.stringify(o)); S.formMode='edit'; S.page='orderForm'; render(); return;
+  }
+
+  // 取消訂單（加入待同步）
+  if (a==='cancelOrder') {
+    showConfirm('確定要取消此訂單？（資料保留，不計入統計）', () => {
+      S.orders=S.orders.map(o=>o.id===el.dataset.id?{...o,status:'已取消'}:o);
+      markPending(el.dataset.id); closeModal(); render(); toast('訂單已取消，按「同步」上傳');
+    }); return;
+  }
+
+  // 刪除訂單（立即寫入 Firebase）
+  if (a==='deleteOrder') {
+    showConfirm('⚠️ 資料刪除後無法復原，確定要永久刪除此訂單嗎？', async () => {
+      const id=el.dataset.id;
+      S.orders=S.orders.filter(o=>o.id!==id);
+      S.pendingSync.delete(id); saveLocal();
+      if (USE_FIREBASE && db) await deleteFromCloud(id);
+      closeModal(); render(); toast('訂單已刪除','err');
+    }); return;
+  }
+
+  // 儲存訂單（存本地 → 加入待同步佇列）
+  if (a==='saveOrder') {
+    const o=S.form;
+    if (!o.customerName.trim()||!o.phone.trim()||!o.orderDate) { toast('請填寫必填欄位','err'); return; }
+    delete o._lockWarnBy;
+    const idx=S.orders.findIndex(x=>x.id===o.id);
+    if (idx>=0) S.orders[idx]=o; else S.orders.push(o);
+    markPending(o.id);
+    if (S.currentLock) await releaseLock(S.currentLock);
+    S.page='orders'; S.form=null; render();
+    toast(USE_FIREBASE ? '✅ 已儲存，點「☁️ 同步」上傳到雲端' : '✅ 訂單已儲存'); return;
+  }
+
+  // 品項操作
+  if (a==='addRetail') { S.form.retailItems.push({pid:'',qty:1}); reRenderForm(); return; }
+  if (a==='removeRetail') { S.form.retailItems.splice(parseInt(el.dataset.idx),1); reRenderForm(); return; }
+  if (a==='addBox') { S.form.customBoxes.push({id:uid(),items:[{pid:'',qty:0}],unitPrice:0,qty:1}); reRenderForm(); return; }
+  if (a==='removeBox') { S.form.customBoxes.splice(parseInt(el.dataset.idx),1); reRenderForm(); return; }
+  if (a==='addBoxItem') { S.form.customBoxes[parseInt(el.dataset.bi)].items.push({pid:'',qty:0}); reRenderForm(); return; }
+  if (a==='removeBoxItem') { const [bi,ii]=el.dataset.ii.split('-').map(Number); S.form.customBoxes[bi].items.splice(ii,1); reRenderForm(); return; }
+
+  // 欄位切換
+  if (a==='setSource') { S.form.source=el.dataset.val; reRenderForm(); return; }
+  if (a==='setDelivery') { S.form.deliveryType=el.dataset.val; reRenderForm(); return; }
+  if (a==='setPayStatus') { S.form.paymentStatus=el.dataset.val; reRenderForm(); return; }
+
+  // 商品管理
+  if (a==='newProd') { S.prodForm={id:null,name:'',unit:'罐',price:'',conv:'',cu:'顆',cat:'雪球系列',active:true}; render(); return; }
+  if (a==='editProd') { const p=S.products.find(x=>x.id===el.dataset.id); if(p){S.prodForm=JSON.parse(JSON.stringify(p));render();} return; }
+  if (a==='cancelProd') { S.prodForm=null; render(); return; }
+  if (a==='saveProd') {
+    const f=S.prodForm;
+    if (!f.name||!f.price||!f.conv) { toast('請填寫完整商品資料','err'); return; }
+    f.price=Number(f.price); f.conv=Number(f.conv);
+    const idx=S.products.findIndex(p=>p.id===f.id);
+    if (idx>=0) S.products[idx]=f; else {f.id='p_'+Date.now();S.products.push(f);}
+    S.prodForm=null; saveLocal();
+    if (USE_FIREBASE&&db) await pushProductsNow();
+    render(); toast('商品已更新'+(USE_FIREBASE?' 並同步':'')); return;
+  }
+  if (a==='toggleProd') {
+    const p=S.products.find(x=>x.id===el.dataset.id); if(p) p.active=!p.active;
+    saveLocal(); if(USE_FIREBASE&&db) await pushProductsNow();
+    render(); toast(p.active?'商品已啟用':'商品已停用'); return;
+  }
+
+  // 報表
+  if (a==='reportTab') { S.reportTab=el.dataset.val; render(); if(el.dataset.val==='plan') loadPlanPOS(); else loadReportPOS(el.dataset.val); return; }
+  if (a==='exportCSV') { exportCSV(); return; }
+
+  // Modal
+  if (a==='confirmOk') { S.confirmCb&&S.confirmCb(); return; }
+  if (a==='confirmCancel') { closeModal(); return; }
+  if (a==='saveName') {
+    const inp=document.getElementById('name-inp');
+    const name=inp?inp.value.trim():'';
+    if (!name) { toast('請輸入姓名','err'); return; }
+    MY_NAME=name; localStorage.setItem('hk_name',name); closeModal(); toast('姓名已設定：'+name); return;
+  }
+});
+
+document.getElementById('app').addEventListener('change', e => {
+  const el=e.target, a=el.dataset.action; if(!a) return;
+  if (a==='fld'&&S.form) { S.form[el.dataset.key]=el.dataset.type==='bool'?el.checked:el.value; reRenderForm(); return; }
+  if (a==='retailPid'&&S.form) { S.form.retailItems[parseInt(el.dataset.idx)].pid=el.value; reRenderForm(); return; }
+  if (a==='retailQty'&&S.form) { S.form.retailItems[parseInt(el.dataset.idx)].qty=Math.max(0,parseInt(el.value)||0); reRenderForm(); return; }
+  if (a==='boxPid'&&S.form) { S.form.customBoxes[parseInt(el.dataset.bi)].items[parseInt(el.dataset.ii)].pid=el.value; reRenderForm(); return; }
+  if (a==='boxItemQty'&&S.form) { S.form.customBoxes[parseInt(el.dataset.bi)].items[parseInt(el.dataset.ii)].qty=parseInt(el.value)||0; reRenderForm(); return; }
+  if (a==='boxPrice'&&S.form) { S.form.customBoxes[parseInt(el.dataset.bi)].unitPrice=parseInt(el.value)||0; reRenderForm(); return; }
+  if (a==='boxQty'&&S.form) { S.form.customBoxes[parseInt(el.dataset.bi)].qty=Math.max(1,parseInt(el.value)||1); reRenderForm(); return; }
+  if (a==='filterDate') { S.filterDate=el.value; render(); return; }
+  if (a==='filterStatus') { S.filterStatus=el.value; render(); return; }
+  if (a==='kitchenDate') { S.kitchenDate=el.value; render(); loadKitchenPOS(el.value); return; }
+  if (a==='planStart') { S.planStart=el.value; render(); if(USE_FIREBASE) loadPlanPOS(); return; }
+  if (a==='planEnd')   { S.planEnd  =el.value; render(); if(USE_FIREBASE) loadPlanPOS(); return; }
+  if (a==='pf'&&S.prodForm) { S.prodForm[el.dataset.key]=el.value; }
+});
+
+document.getElementById('app').addEventListener('input', e => {
+  const el=e.target, a=el.dataset.action;
+  if (a==='filterName') { S.filterName=el.value; render(); }
+});
+
+function reRenderForm() {
+  if (S.page!=='orderForm') return;
+  document.getElementById('pg-el').innerHTML = renderOrderForm();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════════════════
+function toast(msg, type='') {
+  const el=document.getElementById('toast-el');
+  el.innerHTML=`<div class="toast${type?' '+type:''}">${msg}</div>`;
+  setTimeout(()=>{el.innerHTML='';},2800);
+}
+
+function showConfirm(msg, cb, confirmLabel='確定') {
+  S.confirmCb=cb;
+  document.getElementById('modal-el').innerHTML=`
+    <div class="moverlay"><div class="modal">
+      <div class="modal-title">⚠️ 確認操作</div>
+      <div class="modal-msg">${msg}</div>
+      <div class="modal-acts">
+        <button class="btn btn-out" data-action="confirmCancel">取消</button>
+        <button class="btn btn-err" data-action="confirmOk">${confirmLabel}</button>
+      </div>
+    </div></div>`;
+}
+
+function closeModal() { document.getElementById('modal-el').innerHTML=''; S.confirmCb=null; }
+
+function showNameModal() {
+  document.getElementById('modal-el').innerHTML=`
+    <div class="moverlay"><div class="modal">
+      <div class="modal-title">👋 歡迎使用預訂管理系統</div>
+      <div class="modal-msg">請輸入您的姓名。<br>編輯訂單時，其他人會看到是誰正在編輯。</div>
+      <div class="fld" style="margin-top:12px">
+        <input class="inp" id="name-inp" type="text" placeholder="例如：小美" autofocus>
+      </div>
+      <div class="modal-acts">
+        <button class="btn btn-pri btn-blk" data-action="saveName">確定</button>
+      </div>
+    </div></div>`;
+}
+
+function exportCSV() {
+  const pm=pMap(), t=S.reportTab;
+  let filtered=S.orders.filter(o=>o.status==='正常');
+  if (t==='day') filtered=filtered.filter(o=>o.orderDate===today());
+  else if (t==='week') {const d7=new Date();d7.setDate(d7.getDate()-6);filtered=filtered.filter(o=>o.orderDate>=d7.toISOString().slice(0,10));}
+  else filtered=filtered.filter(o=>o.orderDate.startsWith(today().slice(0,7)));
+  const rows=[['訂單ID','出貨日','姓名','電話','來源','取貨方式','品項','總金額','付款狀態','已付','尾款','備註']];
+  filtered.forEach(o=>{const c=calcOrder(o);const paid=o.paymentStatus==='已付款'?c.total:(o.paidAmount||0);rows.push([o.id,o.orderDate,o.customerName,o.phone,o.source,o.deliveryType,itemsSummary(o),c.total,o.paymentStatus,paid,c.balance,o.notes||'']);});
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`訂單報表_${today()}.csv`;a.click();
+  URL.revokeObjectURL(url);toast('CSV 已匯出');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+function init() {
+  loadLocal();
+  if (!S.orders.length) {
+    S.orders=[
+      {id:'o_demo1',orderDate:today(),customerName:'王小明',phone:'0912345678',source:'LINE',deliveryType:'自取',address:'',shippingFee:0,giftBox:false,giftBoxQty:0,giftBoxFee:0,paymentStatus:'已付款',paidAmount:730,status:'正常',notes:'',retailItems:[{pid:'p1',qty:2},{pid:'p9',qty:1}],customBoxes:[],createdAt:new Date().toISOString()},
+      {id:'o_demo2',orderDate:today(),customerName:'林美華',phone:'0987654321',source:'電話',deliveryType:'宅配',address:'新竹縣竹北市光明六路東一段100號',shippingFee:150,giftBox:true,giftBoxQty:1,giftBoxFee:50,paymentStatus:'部分付款',paidAmount:500,status:'正常',notes:'需要提袋',retailItems:[{pid:'p5',qty:3},{pid:'p12',qty:1}],customBoxes:[],createdAt:new Date().toISOString()},
+    ];
+    saveLocal();
+  }
+  initFirebase();
+  render();
+  if (!MY_NAME) showNameModal();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

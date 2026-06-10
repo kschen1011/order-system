@@ -380,11 +380,13 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
         nickname: nickname.trim(),
         phone: phone.trim(),
         name: `${nickname.trim()}（${phone.trim()}）`,
-        items, total, note: note.trim(),
+        items: items || [],
+        total: total || 0,
+        note: note.trim() || '',
         ts: Date.now(),
-        roundId: config.roundId,
+        roundId: config.roundId || '',
         roundName: config.roundName || '第1團',
-        pickedUp: false, pickedUpAt: null
+        pickedUp: false
       };
       await db.collection('orders').add(order);
       setDoneOrder(order);
@@ -392,7 +394,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
     } catch (e) { alert('送出失敗：' + e.message); }
     setSubmitting(false);
   };
-
   if (page === 'confirm') return (
     <div className="app">
       <div className="header">
@@ -429,7 +430,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
       </div>
     </div>
   );
-
   if (page === 'done') return (
     <div className="app">
       <div style={{textAlign:'center',padding:'60px 20px'}}>
@@ -455,7 +455,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
       </div>
     </div>
   );
-
   return (
     <div className="app">
       <div className="header">
@@ -473,7 +472,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
         {config.deliveryDate && <div style={{marginTop:6}}><span className="badge badge-green">📅 {config.deliveryDate}</span></div>}
         {isExpired && <div style={{marginTop:8}}><span className="badge badge-red">⛔ 已截止</span></div>}
       </div>
-
       {isExpired ? (
         <div className="card"><div className="empty">本次團購已截止，感謝參與 🙏</div></div>
       ) : <>
@@ -488,14 +486,12 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
             <input type="tel" placeholder="0912345678" value={phone} onChange={e=>setPhone(e.target.value)}/>
           </div>
         </div>
-
         <div className="section-title" style={{paddingLeft:4}}>🛒 選擇品項</div>
         {products.length === 0 ? (
           <div className="card"><div className="empty">目前尚無商品</div></div>
         ) : products.map(p => (
           <ProductCard key={p.id} product={p} qty={qty} onQtyChange={handleQty} orders={orders} roundId={config.roundId} disabled={isExpired}/>
         ))}
-
         {hasItems && (
           <div className="card" style={{marginTop:4}}>
             <div className="section-title">📝 備註</div>
@@ -504,7 +500,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
             </div>
           </div>
         )}
-
         {hasItems && (
           <div style={{background:'var(--surface)',borderRadius:14,padding:16,marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div>
@@ -515,7 +510,6 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
           </div>
         )}
       </>}
-
       <div className="bottom-links">
         <a onClick={onGoQuery}>查詢訂單</a>
         <a onClick={onGoAdmin}>管理員入口</a>
@@ -523,12 +517,10 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
     </div>
   );
 }
-
 // ── Query Page ───────────────────────────────────────────────
 function QueryPage({ orders, onBack }) {
   const [phone, setPhone] = useState('');
   const [result, setResult] = useState(null);
-
   const search = () => {
     if (!phone.trim()) return;
     const found = orders.filter(o => o.phone === phone.trim());
@@ -540,7 +532,6 @@ function QueryPage({ orders, onBack }) {
     });
     setResult({ total: found.length, byRound });
   };
-
   return (
     <div className="app">
       <div className="header">
@@ -587,7 +578,6 @@ function QueryPage({ orders, onBack }) {
     </div>
   );
 }
-
 // ── Admin Login ──────────────────────────────────────────────
 function AdminLogin({ adminPass, onLogin, onBack }) {
   const [val, setVal] = useState('');
@@ -614,26 +604,22 @@ function AdminLogin({ adminPass, onLogin, onBack }) {
     </div>
   );
 }
-
 // ── Edit Order Modal ─────────────────────────────────────────
 function EditOrderModal({ order, config, onSave, onClose }) {
   const [nickname, setNickname] = useState(order.nickname);
   const [phone, setPhone] = useState(order.phone);
   const [note, setNote] = useState(order.note || '');
   const [items, setItems] = useState(order.items.map(it => ({ ...it })));
-
   const setItemQty = (i, val) => {
     const newItems = [...items];
     newItems[i] = { ...newItems[i], qty: Math.max(0, val) };
     setItems(newItems);
   };
-
   const save = () => {
     const filteredItems = items.filter(it => it.qty > 0);
     const total = filteredItems.reduce((s, it) => s + it.price * it.qty, 0);
     onSave({ ...order, nickname, phone, name: `${nickname}（${phone}）`, note, items: filteredItems, total });
   };
-
   return (
     <div className="modal-overlay" onClick={e=>e.target.className==='modal-overlay'&&onClose()}>
       <div className="modal">
@@ -671,7 +657,6 @@ function EditOrderModal({ order, config, onSave, onClose }) {
     </div>
   );
 }
-
 // ── Pickup Page ──────────────────────────────────────────────
 function PickupPage({ config, orders, onRefresh, onBack }) {
   const [searchPhone, setSearchPhone] = useState('');
@@ -679,25 +664,20 @@ function PickupPage({ config, orders, onRefresh, onBack }) {
   const roundOrders = orders.filter(o => o.roundId === config.roundId);
   const notPickedUp = roundOrders.filter(o => !o.pickedUp);
   const pickedUp = roundOrders.filter(o => o.pickedUp);
-
   const searchResult = searchPhone ? roundOrders.filter(o => o.phone.includes(searchPhone)) : [];
-
   const markPickup = async (orderId, val) => {
     await db.collection('orders').doc(orderId).update({ pickedUp: val, pickedUpAt: val ? Date.now() : null });
     onRefresh();
   };
-
   const copyURGE = () => {
     const lines = notPickedUp.map(o => `· ${o.nickname}（${o.phone.slice(-4)}）`).join('\n');
     const msg = `【半吊子廚房取貨提醒】\n以下成員尚未取貨，請盡快領取：\n${lines}\n謝謝 🙏`;
     navigator.clipboard.writeText(msg).then(() => alert('已複製催取訊息'));
   };
-
   const copyList = () => {
     const lines = notPickedUp.map(o => `${o.nickname} ${o.phone}`).join('\n');
     navigator.clipboard.writeText(lines).then(() => alert('已複製未取貨名單'));
   };
-
   return (
     <div className="app">
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
@@ -716,7 +696,6 @@ function PickupPage({ config, orders, onRefresh, onBack }) {
           </button>
         ))}
       </div>
-
       {tab === 'search' && (
         <>
           <div className="card" style={{marginBottom:10}}>
@@ -739,7 +718,6 @@ function PickupPage({ config, orders, onRefresh, onBack }) {
           ))}
         </>
       )}
-
       {tab === 'notpicked' && (
         <>
           {notPickedUp.length > 0 && (
@@ -761,7 +739,6 @@ function PickupPage({ config, orders, onRefresh, onBack }) {
           }
         </>
       )}
-
       {tab === 'picked' && (
         pickedUp.length === 0 ? <div className="card"><div className="empty">尚無取貨記錄</div></div>
           : pickedUp.map(o => (
@@ -778,7 +755,6 @@ function PickupPage({ config, orders, onRefresh, onBack }) {
     </div>
   );
 }
-
 // ── Setup Page ───────────────────────────────────────────────
 function SetupPage({ config, onSave, onBack }) {
   const [form, setForm] = useState({
@@ -793,32 +769,26 @@ function SetupPage({ config, onSave, onBack }) {
     products: (config.products || []).map(p => ({ ...p, variants: (p.variants||[]).map(v=>({...v})) }))
   });
   const [saving, setSaving] = useState(false);
-
   const setField = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
-
   const addProduct = () => {
     setField('products', [...form.products, {
       id: genId(), name: '', desc: '', price: 0, stock: 0, perLimit: 0, variants: []
     }]);
   };
-
   const updateProduct = (i, k, v) => {
     const ps = [...form.products];
     ps[i] = { ...ps[i], [k]: v };
     setField('products', ps);
   };
-
   const removeProduct = i => {
     if (!confirm('確定刪除此品項？')) return;
     setField('products', form.products.filter((_, idx) => idx !== i));
   };
-
   const addVariant = i => {
     const ps = [...form.products];
     ps[i] = { ...ps[i], variants: [...(ps[i].variants||[]), { id: genId(), name: '', price: 0, stock: 0 }] };
     setField('products', ps);
   };
-
   const updateVariant = (pi, vi, k, v) => {
     const ps = [...form.products];
     const vs = [...(ps[pi].variants||[])];
@@ -826,13 +796,11 @@ function SetupPage({ config, onSave, onBack }) {
     ps[pi] = { ...ps[pi], variants: vs };
     setField('products', ps);
   };
-
   const removeVariant = (pi, vi) => {
     const ps = [...form.products];
     ps[pi] = { ...ps[pi], variants: ps[pi].variants.filter((_,idx)=>idx!==vi) };
     setField('products', ps);
   };
-
   const save = async () => {
     if (!form.adminPass) { alert('管理員密碼不能空白'); return; }
     setSaving(true);
@@ -844,14 +812,12 @@ function SetupPage({ config, onSave, onBack }) {
     } catch (e) { alert('儲存失敗：' + e.message); }
     setSaving(false);
   };
-
   return (
     <div className="app">
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
         <button className="btn btn-ghost btn-sm" onClick={onBack}>← 返回</button>
         <h2 style={{fontSize:18}}>團購設定</h2>
       </div>
-
       <div className="card">
         <div className="section-title">🔐 密碼設定</div>
         <div className="form-group">
@@ -863,7 +829,6 @@ function SetupPage({ config, onSave, onBack }) {
           <input value={form.accessCode} onChange={e=>setField('accessCode',e.target.value)} placeholder="留空則開放所有人"/>
         </div>
       </div>
-
       <div className="card">
         <div className="section-title">📋 基本資訊</div>
         <div className="form-group">
@@ -891,7 +856,6 @@ function SetupPage({ config, onSave, onBack }) {
           <input type="datetime-local" value={form.deadline} onChange={e=>setField('deadline',e.target.value)}/>
         </div>
       </div>
-
       <div className="section-title" style={{paddingLeft:4}}>🛍️ 商品管理</div>
       {form.products.map((p, pi) => (
         <div key={p.id} className="product-edit-card">
@@ -939,27 +903,22 @@ function SetupPage({ config, onSave, onBack }) {
         </div>
       ))}
       <button className="btn btn-secondary btn-block" style={{marginBottom:14}} onClick={addProduct}>+ 新增品項</button>
-
       <button className="btn btn-primary btn-block" disabled={saving} onClick={save} style={{marginBottom:20}}>
         {saving ? '儲存中…' : '💾 儲存設定'}
       </button>
     </div>
   );
 }
-
 // ── Admin Dashboard ──────────────────────────────────────────
 function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onNewRound }) {
   const [roundFilter, setRoundFilter] = useState('current');
   const [editOrder, setEditOrder] = useState(null);
   const [deleting, setDeleting] = useState(null);
-
   const roundOrders = roundFilter === 'current'
     ? orders.filter(o => o.roundId === config.roundId)
     : orders;
-
   const totalAmount = roundOrders.reduce((s, o) => s + (o.total||0), 0);
   const uniquePersons = new Set(roundOrders.map(o => o.phone)).size;
-
   const productStats = {};
   const products = config.products || [];
   products.forEach(p => {
@@ -978,7 +937,6 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
       if (productStats[key]) productStats[key].qty += it.qty;
     });
   });
-
   const saveEdit = async (updated) => {
     await db.collection('orders').doc(updated.id).update({
       nickname: updated.nickname, phone: updated.phone, name: updated.name,
@@ -986,14 +944,12 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
     });
     onRefresh(); setEditOrder(null);
   };
-
   const deleteOrder = async (id) => {
     if (!confirm('確定刪除此訂單？')) return;
     setDeleting(id);
     await db.collection('orders').doc(id).delete();
     onRefresh(); setDeleting(null);
   };
-
   const exportPickup = () => {
     const byDelivery = {};
     roundOrders.forEach(o => {
@@ -1020,7 +976,6 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
     });
     exportCSV(csv, `取貨核對表_${config.roundName||'團購'}.csv`);
   };
-
   const exportOrders = () => {
     const byDelivery = {};
     roundOrders.forEach(o => {
@@ -1046,14 +1001,12 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
     });
     exportCSV(csv, `叫貨統計_${config.roundName||'團購'}.csv`);
   };
-
   return (
     <div className="app">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <h2 style={{fontSize:18,fontFamily:'Noto Serif TC,serif'}}>後台管理</h2>
         <button className="btn btn-ghost btn-sm" onClick={onLogout}>登出</button>
       </div>
-
       <div className="admin-nav">
         {[
           { label:'📦 訂單', key:'orders' },
@@ -1064,13 +1017,11 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
           <button key={n.key} className="nav-btn" onClick={n.action||undefined}>{n.label}</button>
         ))}
       </div>
-
       <div className="stat-grid">
         <div className="stat-card"><div className="stat-num">{roundOrders.length}</div><div className="stat-label">訂單數</div></div>
         <div className="stat-card"><div className="stat-num">{uniquePersons}</div><div className="stat-label">訂購人數</div></div>
         <div className="stat-card"><div className="stat-num" style={{fontSize:16}}>{fmtMoney(totalAmount)}</div><div className="stat-label">總金額</div></div>
       </div>
-
       <div className="card">
         <div className="section-title">📊 品項統計</div>
         {Object.values(productStats).length === 0 ? <div style={{color:'var(--text-muted)',fontSize:13}}>無品項資料</div>
@@ -1089,17 +1040,14 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
           ))
         }
       </div>
-
       <div className="tabs">
         <button className={`tab ${roundFilter==='current'?'active':''}`} onClick={()=>setRoundFilter('current')}>本團</button>
         <button className={`tab ${roundFilter==='all'?'active':''}`} onClick={()=>setRoundFilter('all')}>所有團次</button>
       </div>
-
       <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
         <button className="btn btn-secondary btn-sm" onClick={exportPickup}>📥 取貨核對表</button>
         <button className="btn btn-secondary btn-sm" onClick={exportOrders}>📥 叫貨統計</button>
       </div>
-
       {roundOrders.length === 0 ? (
         <div className="card"><div className="empty">目前沒有訂單</div></div>
       ) : roundOrders.sort((a,b)=>b.ts-a.ts).map(o => (
@@ -1123,16 +1071,13 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
           </div>
         </div>
       ))}
-
       {editOrder && <EditOrderModal order={editOrder} config={config} onSave={saveEdit} onClose={()=>setEditOrder(null)}/>}
     </div>
   );
 }
-
 // ── New Round Modal ───────────────────────────────────────────
 function NewRoundModal({ config, onConfirm, onClose }) {
   const [roundName, setRoundName] = useState(`第${parseInt((config.roundName||'第0團').replace(/[^0-9]/g,'') || '0') + 1}團`);
-
   return (
     <div className="modal-overlay">
       <div className="modal">
@@ -1152,7 +1097,6 @@ function NewRoundModal({ config, onConfirm, onClose }) {
     </div>
   );
 }
-
 // ── Main App ─────────────────────────────────────────────────
 function App() {
   const [page, setPage] = useState('loading');
@@ -1161,7 +1105,6 @@ function App() {
   const [accessGranted, setAccessGranted] = useState(false);
   const [adminLoggedIn, setAdminLoggedIn] = useState(false);
   const [showNewRound, setShowNewRound] = useState(false);
-
   const loadData = useCallback(async () => {
     try {
       const configSnap = await db.collection('config').doc('main').get();
@@ -1184,19 +1127,15 @@ function App() {
         cfg = configSnap.data();
       }
       setConfig(cfg);
-
       const ordersSnap = await db.collection('orders').orderBy('ts','desc').get();
       setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-
       if (!cfg.accessCode) setAccessGranted(true);
       setPage('main');
     } catch(e) {
       alert('無法連接 Firebase，請確認設定：' + e.message);
     }
   }, []);
-
   useEffect(() => { loadData(); }, [loadData]);
-
   const handleNewRound = async (roundName) => {
     const newCfg = { ...config, roundId: genId(), roundName, deadline: '', pickupNote: '', deliveryDate: '' };
     await db.collection('config').doc('main').set(newCfg);
@@ -1204,7 +1143,6 @@ function App() {
     setShowNewRound(false);
     setPage('setup');
   };
-
   if (page === 'loading') return <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}><Loading text="連接中…"/></div>;
   if (!accessGranted) return <AccessPage accessCode={config.accessCode} onEnter={()=>setAccessGranted(true)}/>;
   if (page === 'main' && !adminLoggedIn) return (
@@ -1232,10 +1170,8 @@ function App() {
   if (page === 'setup') return <SetupPage config={config}
     onSave={cfg=>{setConfig(cfg);setPage('admin');}}
     onBack={()=>setPage('admin')}/>;
-
   return null;
 }
-
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>

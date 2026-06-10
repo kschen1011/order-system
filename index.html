@@ -348,15 +348,31 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
 
   const buildItems = () => {
     const items = [];
+    const clean = v => (v === undefined || v === null) ? '' : v;
+    const cleanNum = v => (v === undefined || v === null || isNaN(v)) ? 0 : Number(v);
     products.forEach(p => {
       if (p.variants && p.variants.length > 0) {
         p.variants.forEach(v => {
           const q = qty[`${p.id}_${v.id}`] || 0;
-          if (q > 0) items.push({ productId: p.id, productName: p.name, variantId: v.id, variantName: v.name, price: v.price || p.price, qty: q });
+          if (q > 0) items.push({
+            productId: clean(p.id),
+            productName: clean(p.name),
+            variantId: clean(v.id),
+            variantName: clean(v.name),
+            price: cleanNum(v.price || p.price),
+            qty: cleanNum(q)
+          });
         });
       } else {
         const q = qty[p.id] || 0;
-        if (q > 0) items.push({ productId: p.id, productName: p.name, price: p.price, qty: q });
+        if (q > 0) items.push({
+          productId: clean(p.id),
+          productName: clean(p.name),
+          variantId: '',
+          variantName: '',
+          price: cleanNum(p.price),
+          qty: cleanNum(q)
+        });
       }
     });
     return items;

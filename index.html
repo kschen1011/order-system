@@ -978,7 +978,7 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
   const exportPickup = () => {
     const byDelivery = {};
     roundOrders.forEach(o => {
-      const key = o.deliveryDate || '未分組';
+      const key = config.deliveryDate || '未分組';
       if (!byDelivery[key]) byDelivery[key] = [];
       byDelivery[key].push(o);
     });
@@ -1004,7 +1004,7 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
   const exportOrders = () => {
     const byDelivery = {};
     roundOrders.forEach(o => {
-      const key = o.deliveryDate || '未分組';
+      const key = config.deliveryDate || '未分組';
       if (!byDelivery[key]) byDelivery[key] = [];
       byDelivery[key].push(o);
     });
@@ -1039,7 +1039,7 @@ function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onN
           { label:'⚙️ 設定', key:'setup', action: onSetup },
           { label:'🔄 新一團', key:'newround', action: onNewRound },
         ].map(n => (
-          <button key={n.key} className="nav-btn" onClick={n.action||undefined}>{n.label}</button>
+          <button key={n.key} className={`nav-btn ${n.key==='orders'?'active':''}`} onClick={n.action||undefined} style={n.action?{}:{cursor:'default'}}>{n.label}</button>
         ))}
       </div>
       <div className="stat-grid">
@@ -1130,6 +1130,15 @@ function App() {
   const [accessGranted, setAccessGranted] = useState(false);
   const [adminLoggedIn, setAdminLoggedIn] = useState(false);
   const [showNewRound, setShowNewRound] = useState(false);
+  // 僅重新整理訂單資料，不改變頁面
+  const refreshOrders = useCallback(async () => {
+    try {
+      const ordersSnap = await db.collection('orders').get();
+      setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.ts||0)-(a.ts||0)));
+    } catch(e) { console.error('refresh failed', e); }
+  }, []);
+
+  // 初始化：載入設定 + 訂單，設定頁面
   const loadData = useCallback(async () => {
     try {
       const configSnap = await db.collection('config').doc('main').get();
@@ -1152,8 +1161,8 @@ function App() {
         cfg = configSnap.data();
       }
       setConfig(cfg);
-      const ordersSnap = await db.collection('orders').orderBy('ts','desc').get();
-      setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const ordersSnap = await db.collection('orders').get();
+      setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.ts||0)-(a.ts||0)));
       if (!cfg.accessCode) setAccessGranted(true);
       setPage('main');
     } catch(e) {
@@ -1183,7 +1192,7 @@ function App() {
   if (page === 'admin-login') return <AdminLogin adminPass={config.adminPass} onLogin={()=>{setAdminLoggedIn(true);setPage('admin');}} onBack={()=>setPage('main')}/>;
   if (page === 'admin') return (
     <>
-      <AdminPage config={config} orders={orders} onRefresh={loadData}
+      <AdminPage config={config} orders={orders} onRefresh={refreshOrders}
         onLogout={()=>{setAdminLoggedIn(false);setPage('main');}}
         onSetup={()=>setPage('setup')}
         onPickup={()=>setPage('pickup')}
@@ -1191,7 +1200,7 @@ function App() {
       {showNewRound && <NewRoundModal config={config} onConfirm={handleNewRound} onClose={()=>setShowNewRound(false)}/>}
     </>
   );
-  if (page === 'pickup') return <PickupPage config={config} orders={orders} onRefresh={loadData} onBack={()=>setPage('admin')}/>;
+  if (page === 'pickup') return <PickupPage config={config} orders={orders} onRefresh={refreshOrders} onBack={()=>setPage('admin')}/>;
   if (page === 'setup') return <SetupPage config={config}
     onSave={cfg=>{setConfig(cfg);setPage('admin');}}
     onBack={()=>setPage('admin')}/>;

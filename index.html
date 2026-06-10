@@ -407,6 +407,7 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
       await db.collection('orders').add(order);
       setDoneOrder(order);
       setPage('done');
+      onSubmit && onSubmit();
     } catch (e) { alert('送出失敗：' + e.message); }
     setSubmitting(false);
   };
@@ -561,7 +562,7 @@ function QueryPage({ orders, onBack }) {
             onChange={e=>setPhone(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&search()}/>
         </div>
-        <button className="btn btn-primary btn-block" onClick={search}>查詢</button>
+        <button className="btn btn-primary btn-block" disabled={searching} onClick={search}>{searching ? '查詢中…' : '查詢'}</button>
       </div>
       {result && (
         result.total === 0 ? (

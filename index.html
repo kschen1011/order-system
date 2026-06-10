@@ -296,6 +296,11 @@ async function loadSettings() {
     const doc = await db.collection('config').doc('settings').get();
     if (doc.exists) {
       S.settings = doc.data();
+      // 入場碼驗證
+      const unlocked = sessionStorage.getItem('hk_entry');
+      if (S.settings.entryCode && unlocked !== S.settings.entryCode) {
+        S.view = 'entry';
+      }
     } else {
       S.settings = buildDefaultSettings();
       await db.collection('config').doc('settings').set(S.settings);
@@ -315,7 +320,8 @@ function buildDefaultSettings() {
     isOpen:        true,
     orderCount:    0,
     closedAt:      null,
-    adminPassword: 'halfkitchen',
+    adminPassword: '0000',
+    entryCode:     '',       // 入場碼（空白表示不需要）
     products: [
       {id:'p1', name:'招牌鹹蛋雪球',   price:230, unit:'罐', desc:'鹹蛋黃爆漿，每罐20顆', maxQty:10, active:true},
       {id:'p2', name:'經典原味雪球',   price:230, unit:'罐', desc:'入口即化，奶香十足',   maxQty:10, active:true},
@@ -331,7 +337,14 @@ function buildDefaultSettings() {
 // ════════════════════════════════════════════════════════════
 //  RENDER ENGINE
 // ════════════════════════════════════════════════════════════
-function showView(v) { S.view = v; render(); }
+function showView(v) {
+  // 進入下單頁前，若有入場碼且尚未解鎖，先顯示入場碼頁
+  if (v === 'home' && S.settings?.entryCode) {
+    const unlocked = sessionStorage.getItem('hk_entry');
+    if (unlocked !== S.settings.entryCode) { S.view = 'entry'; render(); return; }
+  }
+  S.view = v; render();
+}
 
 function render() {
   _renderHeader();
@@ -340,6 +353,7 @@ function render() {
   const el = document.getElementById('pg-el');
 
   switch (S.view) {
+    case 'entry':       el.innerHTML = renderEntry();      break;
     case 'home':        el.innerHTML = renderHome();       break;
     case 'done':        el.innerHTML = renderDone();       break;
     case 'inquiry':     el.innerHTML = renderInquiry();    break;
@@ -375,7 +389,7 @@ function _renderHeader() {
   } else {
     const name = S.settings?.roundName || '半吊子廚房';
     el.innerHTML = `<div class="hd">
-      <div><div class="hd-brand">${escHtml(name)}</div><div class="hd-sub">手工雪球餅乾</div></div>
+      <div><div class="hd-brand">${escHtml(name)}</div><div class="hd-sub">美食團購</div></div>
       <button class="hd-btn" onclick="showView('admin-login')">管理</button>
     </div>`;
   }
@@ -383,7 +397,7 @@ function _renderHeader() {
 
 function _renderNav() {
   const nav = document.getElementById('nav-el');
-  const consumer = ['home','done','inquiry'].includes(S.view);
+  const consumer = ['home','done','inquiry','entry'].includes(S.view);
   nav.style.display = consumer ? 'flex' : 'none';
   if (!consumer) return;
   nav.innerHTML = [
@@ -396,6 +410,50 @@ function _renderNav() {
     return `<button class="nb${on?' on':''}" onclick="showView('${t.k}')">
       <span class="ni">${t.icon}</span>${t.lbl}</button>`;
   }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  ENTRY — 入場碼驗證頁
+//  每次開團設定新入場碼，只分享給社群成員
+//  sessionStorage 記住本次瀏覽器已解鎖，關閉分頁後重置
+// ════════════════════════════════════════════════════════════
+function renderEntry() {
+  const name = S.settings?.roundName || '半吊子廚房';
+  return `
+  <div style="max-width:340px;margin:60px auto 0;padding:0 14px">
+    <div class="card" style="text-align:center;padding:36px 24px">
+      <div style="font-size:48px;margin-bottom:14px">🔐</div>
+      <div style="font-family:'Noto Serif TC';font-size:20px;font-weight:700;color:var(--pri);margin-bottom:6px">
+        ${escHtml(name)}
+      </div>
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:24px;line-height:1.7">
+        本次團購為社群專屬<br>請輸入入場碼進入
+      </div>
+      <div class="fld" style="text-align:left">
+        <label class="lbl">入場碼</label>
+        <input class="inp" id="entry-code" type="text" inputmode="numeric"
+          placeholder="請輸入入場碼"
+          onkeydown="if(event.key==='Enter') checkEntryCode()">
+      </div>
+      <button class="btn btn-acc btn-blk" onclick="checkEntryCode()" style="margin-top:8px">
+        進入 →
+      </button>
+    </div>
+  </div>`;
+}
+
+function checkEntryCode() {
+  const input = document.getElementById('entry-code')?.value.trim() || '';
+  if (!input) { toast('請輸入入場碼', 'err'); return; }
+  if (input === S.settings?.entryCode) {
+    sessionStorage.setItem('hk_entry', input); // 本次瀏覽器記住已解鎖
+    S.view = 'home';
+    render();
+  } else {
+    toast('入場碼錯誤', 'err');
+    const el = document.getElementById('entry-code');
+    if (el) { el.value = ''; el.focus(); }
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1414,9 +1472,25 @@ function renderSettings() {
       <textarea class="inp" id="st-desc">${escHtml(s.description||'')}</textarea></div>
     <div class="fld"><label class="lbl">付款資訊（顯示在下單頁與確認頁）</label>
       <textarea class="inp" id="st-pay" style="min-height:100px">${escHtml(s.paymentInfo||'')}</textarea></div>
-    <div class="fld"><label class="lbl">管理員密碼</label>
-      <input class="inp" id="st-pw" type="text" value="${escHtml(s.adminPassword||'')}"></div>
-    <button class="btn btn-pri btn-sm" onclick="saveBasic()">儲存基本資訊</button>
+    <hr style="border:none;border-top:1px solid var(--bdr);margin:4px 0 14px">
+    <div class="fld">
+      <label class="lbl">🔐 入場碼（客人下單前需輸入，空白表示不設限）</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="inp" id="st-entry" type="text" inputmode="numeric"
+          placeholder="例如：1234（每次開團可更換）"
+          value="${escHtml(s.entryCode||'')}">
+        <button class="btn btn-out btn-sm" style="white-space:nowrap"
+          onclick="document.getElementById('st-entry').value=''">清除</button>
+      </div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">
+        設定後，客人需輸入正確入場碼才能看到下單頁。開新一團時記得更換。
+      </div>
+    </div>
+    <div class="fld">
+      <label class="lbl">管理員密碼</label>
+      <input class="inp" id="st-pw" type="password" value="${escHtml(s.adminPassword||'')}">
+    </div>
+    <button class="btn btn-pri btn-sm" onclick="saveBasic()">儲存</button>
   </div>
 
   <div class="card">
@@ -1449,19 +1523,22 @@ function addPickupDate()         { (S.settings.pickupDates=S.settings.pickupDate
 function _reRenderSettings()     { document.getElementById('pg-el').innerHTML = renderSettings(); }
 
 async function saveBasic() {
-  const name = document.getElementById('st-name')?.value.trim()||'';
-  const desc = document.getElementById('st-desc')?.value||'';
-  const pay  = document.getElementById('st-pay')?.value||'';
-  const pw   = document.getElementById('st-pw')?.value.trim()||'';
+  const name  = document.getElementById('st-name')?.value.trim()||'';
+  const desc  = document.getElementById('st-desc')?.value||'';
+  const pay   = document.getElementById('st-pay')?.value||'';
+  const entry = document.getElementById('st-entry')?.value.trim()||'';
+  const pw    = document.getElementById('st-pw')?.value.trim()||'';
   if (!name) { toast('請填寫團購名稱', 'err'); return; }
   try {
     await db.collection('config').doc('settings').update({
       roundName: name, description: desc, paymentInfo: pay,
+      entryCode: entry,
       ...(pw ? { adminPassword: pw } : {})
     });
-    S.settings.roundName=name; S.settings.description=desc; S.settings.paymentInfo=pay;
+    S.settings.roundName=name; S.settings.description=desc;
+    S.settings.paymentInfo=pay; S.settings.entryCode=entry;
     if (pw) S.settings.adminPassword=pw;
-    toast('基本資訊已儲存', 'ok');
+    toast('設定已儲存', 'ok');
   } catch (e) { toast('儲存失敗：' + e.message, 'err'); }
 }
 

@@ -1,1568 +1,1234 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>半吊子廚房｜團購系統</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>半吊子廚房｜團購下單</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-/* ── Design Tokens ── */
 :root{
-  --bg:#FDF5E4;--surf:#FFFBF0;--pri:#2E1B0E;--acc:#C87828;--acc2:#F5E4B8;
-  --txt:#2E1B0E;--txt2:#8C6448;--bdr:#E0CC9E;--bg2:#F5EDD6;
-  --ok:#3D7848;--err:#C0392B;--warn:#C87828;
-  --r:12px;--nav:56px;--sha:0 2px 12px rgba(46,27,14,.10);
+  --bg:#F7F3EE;--surface:#FFFFFF;--accent:#C4622D;--accent-hover:#A84E20;
+  --green:#3D7848;--red:#C0392B;--amber:#A07010;--purple:#5B3F9A;
+  --text:#1C1008;--text-muted:#7A6A5A;--border:#E0D8CF;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--txt);font-family:'Noto Sans TC',sans-serif;-webkit-tap-highlight-color:transparent}
-#app{max-width:480px;margin:0 auto;height:100dvh;height:100vh;display:flex;flex-direction:column;background:var(--bg);position:relative}
-
-/* Header */
-.hd{background:var(--pri);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:30}
-.hd-brand{font-family:'Noto Serif TC';font-size:16px;font-weight:700;letter-spacing:.5px}
-.hd-sub{font-size:10px;opacity:.6;margin-top:1px}
-.hd-btn{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'Noto Sans TC';font-size:12px;transition:background .15s}
-.hd-btn:hover{background:rgba(255,255,255,.28)}
-
-/* Nav */
-.nav{width:100%;height:var(--nav);background:var(--surf);border-top:1px solid var(--bdr);display:flex;z-index:30;box-shadow:0 -2px 8px rgba(46,27,14,.06);flex-shrink:0}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;cursor:pointer;font-family:'Noto Sans TC';font-size:10px;color:var(--txt2);transition:color .15s;padding:0}
-.nb.on{color:var(--acc)}.ni{font-size:22px;line-height:1}
-
-/* Admin tabs */
-.atabs{background:var(--surf);border-bottom:2px solid var(--bdr);display:flex;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
-.atabs::-webkit-scrollbar{display:none}
-.atab{border:none;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 14px;background:none;font-family:'Noto Sans TC';font-size:12px;color:var(--txt2);cursor:pointer;white-space:nowrap;transition:color .15s;flex-shrink:0}
-.atab:hover{color:var(--acc)}.atab.on{color:var(--acc);border-bottom-color:var(--acc);font-weight:500}
-.atab.danger{color:var(--err)}.atab.danger.on{border-bottom-color:var(--err)}
-
-/* Scroll wrapper */
-#pg-wrapper{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-.pg{padding:0 0 28px}
-
-/* Cards */
-.card{background:var(--surf);border-radius:var(--r);box-shadow:var(--sha);padding:16px;margin:0 14px 10px}
-.sec-hd{font-family:'Noto Serif TC';font-size:14px;font-weight:700;color:var(--pri);padding:14px 18px 8px;border-bottom:1px solid var(--bg2)}
-
-/* Hero */
-.hero{background:linear-gradient(135deg,#2A1608 0%,#4E2B0E 60%,#6B3A12 100%);color:#fff;padding:22px 18px;margin:14px 14px 0;border-radius:var(--r);position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(46,27,14,.25)}
-.hero::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(200,120,40,.35) 0%,transparent 70%);border-radius:50%}
-.hero::after{content:'❄';position:absolute;right:14px;bottom:10px;font-size:56px;opacity:.1;font-family:serif}
-.hero-tag{display:inline-block;background:var(--acc);color:#fff;font-size:11px;font-weight:500;letter-spacing:.12em;padding:3px 10px;border-radius:20px;margin-bottom:10px;text-transform:uppercase}
-.hero-tag.closed{background:#666}
-.hero-title{font-family:'Noto Serif TC';font-size:20px;font-weight:700;color:var(--acc2);margin-bottom:6px;line-height:1.3}
-.hero-desc{font-size:13px;opacity:.82;line-height:1.75;margin-bottom:14px}
-.hero-meta{display:flex;gap:14px;flex-wrap:wrap}
-.hero-meta-item{font-size:12px;opacity:.88;display:flex;align-items:center;gap:4px}
-
-/* Forms */
-.fld{margin-bottom:12px}
-.lbl{font-size:12px;color:var(--txt2);font-weight:500;margin-bottom:4px;display:block}
-.inp{width:100%;border:1.5px solid var(--bdr);border-radius:8px;padding:10px 12px;font-family:'Noto Sans TC';font-size:14px;color:var(--txt);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;appearance:none;-webkit-appearance:none}
-.inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(200,120,40,.12)}
-textarea.inp{resize:vertical;min-height:64px}
-select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238C6448' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-.row{display:flex;gap:10px}.row>.fld{flex:1;min-width:0}
-
-/* Product cards */
-.prod-grid{display:flex;flex-direction:column;gap:8px}
-.prod-card{display:flex;align-items:center;gap:10px;background:var(--surf);border:1.5px solid var(--bdr);border-radius:10px;padding:12px 14px;transition:border-color .15s}
-.prod-card:hover{border-color:var(--acc)}
-.prod-info{flex:1;min-width:0}
-.prod-name{font-size:14px;font-weight:500;color:var(--pri)}
-.prod-desc{font-size:11px;color:var(--txt2);margin-top:2px}
-.prod-price{font-size:16px;font-weight:700;color:var(--acc);font-family:'Noto Serif TC';white-space:nowrap;flex-shrink:0}
-.qty-ctrl{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px}
-.qty-btn{width:30px;height:30px;border:1.5px solid var(--bdr);background:#fff;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--txt2);transition:all .15s;line-height:1;flex-shrink:0}
-.qty-btn:hover{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
-.qty-btn:active{transform:scale(.9)}
-.qty-num{min-width:26px;text-align:center;font-weight:700;font-size:15px}
-
-/* Order summary */
-.sum-box{background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:12px}
-.sum-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06)}
-.sum-total{font-weight:700;font-size:17px;color:var(--pri);border-top:1.5px solid var(--bdr);padding-top:8px;margin-top:4px;border-bottom:none;display:flex;justify-content:space-between}
-
-/* Payment box */
-.pay-box{background:linear-gradient(135deg,#FFF8E8,#FFF3D0);border:1px solid #E8C870;border-radius:10px;padding:14px;margin-bottom:12px}
-.pay-title{font-weight:700;font-size:13px;color:var(--pri);margin-bottom:6px;display:flex;align-items:center;gap:6px}
-.pay-text{font-size:13px;color:var(--txt2);line-height:1.9;white-space:pre-wrap}
-
-/* Buttons */
-.btn{border:none;border-radius:8px;cursor:pointer;font-family:'Noto Sans TC';font-size:14px;font-weight:500;padding:10px 18px;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s,transform .1s,box-shadow .15s;justify-content:center;text-align:center}
-.btn:active{transform:scale(.96)}
-.btn-pri{background:var(--pri);color:#fff}
-.btn-pri:hover{background:#1A0A04}
-.btn-acc{background:var(--acc);color:#fff;box-shadow:0 2px 8px rgba(200,120,40,.3)}
-.btn-acc:hover{background:#A86010;box-shadow:0 4px 14px rgba(200,120,40,.4)}
-.btn-out{background:transparent;border:1.5px solid var(--bdr);color:var(--txt)}
-.btn-out:hover{border-color:var(--acc);color:var(--acc)}
-.btn-err{background:var(--err);color:#fff}
-.btn-err:hover{background:#9B1A0B}
-.btn-ok{background:var(--ok);color:#fff}
-.btn-ok:hover{background:#2A5530}
-.btn-sm{padding:6px 12px;font-size:12px;border-radius:6px}
-.btn-blk{width:100%}
-.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
-
-/* Badges */
-.bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
-.bdg-pending{background:#FFF3E0;color:#E65100}
-.bdg-paid{background:#E8F5E9;color:#2E7D32}
-.bdg-picked{background:#E8EAF6;color:#283593}
-.bdg-cancel{background:#FDECEA;color:#C62828}
-
-/* Toast */
-.toast-wrap{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:200;pointer-events:none}
-.toast{background:rgba(46,27,14,.93);color:#fff;padding:10px 20px;border-radius:24px;font-size:13px;white-space:nowrap;animation:tin .2s ease}
-.toast.ok{background:var(--ok)}.toast.err{background:var(--err)}.toast.warn{background:var(--warn)}
-@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-
-/* Modal */
-.moverlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;backdrop-filter:blur(2px)}
-.modal{background:#fff;border-radius:16px;padding:22px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.modal-title{font-family:'Noto Serif TC';font-size:16px;font-weight:700;color:var(--pri);margin-bottom:8px}
-.modal-msg{font-size:14px;color:var(--txt2);line-height:1.65;white-space:pre-wrap}
-.modal-acts{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
-
-/* Stats */
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px}
-.stat-box{background:var(--bg2);border-radius:10px;padding:14px}
-.stat-num{font-family:'Noto Serif TC';font-size:24px;font-weight:700;color:var(--acc)}
-.stat-lbl{font-size:11px;color:var(--txt2);margin-top:2px}
-
-/* Table */
-.tbl-wrap{overflow-x:auto;margin:0 14px;border-radius:10px;border:1px solid var(--bdr)}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:var(--pri);color:rgba(255,255,255,.88);padding:10px 12px;text-align:left;white-space:nowrap;font-weight:500}
-td{padding:10px 12px;border-bottom:1px solid var(--bg2);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--bg2)}
-.td-acts{display:flex;gap:5px;flex-wrap:wrap}
-
-/* Filter bar */
-.fbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
-.fbar .inp{flex:1;min-width:100px}
-
-/* Pickup */
-.pickup-group{margin:0 14px 12px;border:1.5px solid var(--bdr);border-radius:var(--r);overflow:hidden}
-.pickup-hd{background:var(--pri);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-.pickup-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bg2);transition:background .15s}
-.pickup-row:last-child{border-bottom:none}
-.pickup-row.picked{background:#F1FBF4}
-.pickup-cb{width:18px;height:18px;accent-color:var(--ok);flex-shrink:0;cursor:pointer}
-
-/* Inquiry cards */
-.inq-card{background:var(--surf);border:1.5px solid var(--bdr);border-radius:var(--r);padding:14px;margin:0 14px 10px;box-shadow:var(--sha)}
-.inq-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
-.inq-no{font-family:'Noto Serif TC';font-size:16px;font-weight:700}
-.inq-items{font-size:12px;color:var(--txt2);line-height:1.75;margin:6px 0}
-.inq-meta{font-size:12px;color:var(--txt2);display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
-
-/* Misc */
-.empty{text-align:center;padding:48px 20px;color:var(--txt2)}
-.empty-icon{font-size:40px;margin-bottom:8px}
-.empty-text{font-size:14px;line-height:1.7}
-.pt{padding-top:12px}.mx{margin:0 14px}.mb{margin-bottom:10px}
-.warn-box{background:#FFF8E1;border-left:3px solid var(--warn);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;color:var(--pri);margin:0 14px 12px;line-height:1.65}
-.err-box{background:#FEF0EF;border-left:3px solid var(--err);padding:10px 14px;border-radius:0 8px 8px 0;font-size:13px;color:var(--err);margin:0 14px 12px;line-height:1.65}
-.danger-zone{border:2px solid var(--err);border-radius:var(--r);margin:0 14px 14px;overflow:hidden}
-.danger-hd{background:var(--err);color:#fff;padding:10px 14px;font-weight:600;font-size:13px}
-.danger-body{padding:16px}
-.divider{text-align:center;color:var(--bdr);font-size:12px;letter-spacing:.2em;margin:10px 0}
-code{background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:12px}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh}
+h1,h2,h3,h4{font-family:'Noto Serif TC',serif}
+.app{max-width:680px;margin:0 auto;padding:16px}
+/* HEADER */
+.header{text-align:center;padding:28px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.header .brand{font-size:13px;letter-spacing:3px;color:var(--accent);font-weight:600;margin-bottom:6px}
+.header h1{font-size:22px;font-weight:700;color:var(--text)}
+.header .sub{font-size:13px;color:var(--text-muted);margin-top:4px}
+/* CARD */
+.card{background:var(--surface);border-radius:14px;padding:20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 22px;border-radius:8px;border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:600;transition:background .15s,opacity .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-secondary{background:transparent;border:1.5px solid var(--accent);color:var(--accent)}
+.btn-secondary:hover{background:#f9ede7}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn-ghost{background:transparent;color:var(--text-muted);font-weight:500}
+.btn-ghost:hover{color:var(--text);background:var(--bg)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#a93226}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:#2f5e38}
+.btn-block{width:100%;display:flex}
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--text)}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Noto Sans TC',sans-serif;font-size:14px;background:#fff;color:var(--text);transition:border-color .15s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
+.form-group textarea{resize:vertical;min-height:72px}
+/* BADGE */
+.badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600}
+.badge-accent{background:#fbe9e0;color:var(--accent)}
+.badge-green{background:#e6f2e8;color:var(--green)}
+.badge-red{background:#fde9e7;color:var(--red)}
+.badge-amber{background:#fdf3dc;color:var(--amber)}
+.badge-purple{background:#ede9f7;color:var(--purple)}
+.badge-gray{background:#f0ece8;color:var(--text-muted)}
+/* PRODUCT CARD */
+.product-card{border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;background:var(--surface)}
+.product-card.sold-out{opacity:.55}
+.product-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.product-name{font-size:15px;font-weight:700;font-family:'Noto Serif TC',serif}
+.product-price{font-size:15px;font-weight:700;color:var(--accent)}
+.product-desc{font-size:13px;color:var(--text-muted);margin-bottom:10px}
+.product-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+/* QTY CONTROL */
+.qty-control{display:flex;align-items:center;gap:12px}
+.qty-btn{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.qty-btn-minus{background:#f0ece8;color:var(--text)}
+.qty-btn-minus:hover{background:#e0d8cf}
+.qty-btn-plus{background:var(--accent);color:#fff}
+.qty-btn-plus:hover{background:var(--accent-hover)}
+.qty-btn:disabled{opacity:.35;cursor:not-allowed}
+.qty-num{font-size:16px;font-weight:700;min-width:24px;text-align:center}
+/* VARIANT ROW */
+.variant-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--bg)}
+.variant-name{font-size:13px;color:var(--text)}
+/* PROGRESS BAR */
+.progress-wrap{margin:4px 0 2px}
+.progress-bg{background:#f0ece8;border-radius:100px;height:7px;overflow:hidden}
+.progress-fill{height:100%;border-radius:100px;background:var(--accent);transition:width .3s}
+.progress-fill.full{background:var(--red)}
+.progress-fill.low{background:var(--amber)}
+.progress-text{font-size:12px;color:var(--text-muted);margin-top:3px}
+/* STAT CARDS */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat-card{background:var(--surface);border-radius:14px;padding:14px;text-align:center}
+.stat-num{font-size:22px;font-weight:700;font-family:'Noto Serif TC',serif;color:var(--accent)}
+.stat-label{font-size:12px;color:var(--text-muted);margin-top:2px}
+/* ORDER ROW */
+.order-row{border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px}
+.order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.order-name{font-size:14px;font-weight:700}
+.order-total{font-size:14px;font-weight:700;color:var(--accent)}
+.order-items{font-size:13px;color:var(--text-muted);line-height:1.7}
+.order-note{font-size:12px;color:var(--amber);margin-top:4px}
+.order-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+/* TABS */
+.tabs{display:flex;gap:4px;background:#f0ece8;border-radius:10px;padding:4px;margin-bottom:16px}
+.tab{flex:1;padding:8px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);transition:all .15s;font-family:'Noto Sans TC',sans-serif}
+.tab.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* NAV */
+.admin-nav{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px}
+.nav-btn{padding:9px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;font-family:'Noto Sans TC',sans-serif;background:#f0ece8;color:var(--text-muted);transition:all .15s}
+.nav-btn.active{background:var(--accent);color:#fff}
+/* PICKUP */
+.pickup-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px}
+.pickup-done{opacity:.5;text-decoration:line-through}
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0}
+/* SECTION TITLE */
+.section-title{font-size:16px;font-weight:700;margin-bottom:12px;font-family:'Noto Serif TC',serif;display:flex;align-items:center;gap:8px}
+/* ALERT */
+.alert{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:14px}
+.alert-amber{background:#fdf3dc;color:var(--amber);border:1px solid #f0d98a}
+.alert-green{background:#e6f2e8;color:var(--green);border:1px solid #a8d5ae}
+.alert-red{background:#fde9e7;color:var(--red);border:1px solid #f0aaA4}
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--text-muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* BOTTOM LINKS */
+.bottom-links{text-align:center;padding:20px 0 8px;display:flex;justify-content:center;gap:16px}
+.bottom-links a{font-size:13px;color:var(--text-muted);text-decoration:none;cursor:pointer}
+.bottom-links a:hover{color:var(--accent)}
+/* EDIT MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;font-family:'Noto Serif TC',serif}
+/* ITEM TAGS */
+.item-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+/* SETUP */
+.setup-section{margin-bottom:20px}
+.product-edit-card{border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+/* CONFIRM TABLE */
+.confirm-table{width:100%;border-collapse:collapse}
+.confirm-table td{padding:8px 4px;font-size:14px;border-bottom:1px solid var(--bg)}
+.confirm-table td:last-child{text-align:right;font-weight:600}
+.confirm-total{display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding:12px 4px;border-top:2px solid var(--border);margin-top:4px}
+/* EMPTY */
+.empty{text-align:center;padding:32px;color:var(--text-muted);font-size:14px}
+/* RESPONSIVE */
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:repeat(3,1fr)}
+  .stat-num{font-size:18px}
+}
+/* PASSWORD PAGE */
+.pw-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.pw-card{background:var(--surface);border-radius:20px;padding:32px 28px;width:100%;max-width:380px;text-align:center}
+.pw-logo{font-size:13px;letter-spacing:3px;color:var(--accent);font-weight:600;margin-bottom:8px}
+.pw-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.pw-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="hd-el"></div>
-  <div id="atabs-el"></div>
-  <div id="pg-wrapper"><div id="pg-el" class="pg"></div></div>
-  <nav class="nav" id="nav-el" style="display:none"></nav>
-  <div class="toast-wrap" id="toast-el"></div>
-  <div id="modal-el"></div>
-</div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
 
-<script>
-'use strict';
-// ════════════════════════════════════════════════════════════
-//  半吊子廚房 THE HALF KITCHEN  |  消費者團購系統 v3.1
-//  ▸ 電話正規化 BUG 修復：統一以純數字儲存與查詢
-//  ▸ 查詢不使用 orderBy，避免需要複合索引導致靜默失敗
-// ════════════════════════════════════════════════════════════
-
-const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyAlx_n5YaGSpnAX-8GQdSBt7lr_2M0PPmQ",
-  authDomain:        "my-groupbuy.firebaseapp.com",
-  projectId:         "my-groupbuy",
-  storageBucket:     "my-groupbuy.appspot.com",
+// ── Firebase Init ────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAlx_n5YaGSpnAX-8GQdSBt7lr_2M0PPmQ",
+  authDomain: "my-groupbuy.firebaseapp.com",
+  projectId: "my-groupbuy",
+  storageBucket: "my-groupbuy.firebasestorage.app",
   messagingSenderId: "58893121747",
-  appId:             "1:58893121747:web:7f778ae5feb13d603b7c26"
+  appId: "1:58893121747:web:7f778ae5feb13d603b7c26"
 };
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-// ── State ────────────────────────────────────────────────────
-const S = {
-  view: 'home',          // home | done | inquiry | admin-login | admin | settings
-  adminTab: 'orders',    // orders | pickup | csv | migrate | fix | close
-  adminLoggedIn: false,
-  settings: null,        // Firestore config/settings
-  orders: [],            // current round orders (admin)
-  allOrders: [],         // all orders across all rounds (migrate/fix)
-  orderFilter: { search: '', status: '' },
-  qtyMap: {},            // productId → qty (consumer order being built)
-  inquiryPhone: '',
-  inquiryOrderNo: '',
-  inquiryResults: null,  // null = not yet searched, [] = searched with no results
-  inquiryError: null,
-  doneOrder: null,
-};
+// ── Helpers ──────────────────────────────────────────────────
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const fmtMoney = n => `NT$${Number(n||0).toLocaleString()}`;
+const fmtDate = ts => ts ? new Date(ts).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
 
-let db = null;
-let _confirmCb = null;
-
-// ════════════════════════════════════════════════════════════
-//  PHONE NORMALIZATION  ← 查詢 Bug 修復核心
-//  原因：客人下單輸入 "0912-345-678"，查詢輸入 "0912345678"
-//        兩者都會存進/查詢 Firestore，但 where('phone','==') 是完全比對
-//        因此格式不同就永遠查不到。
-//  修法：存入前、查詢前，一律先 normPhone() 轉成純數字
-// ════════════════════════════════════════════════════════════
-function normPhone(p) {
-  return String(p || '').replace(/\D/g, '');
-}
-function fmtPhone(p) {
-  const n = normPhone(p);
-  if (n.length === 10) return n.slice(0,4) + '-' + n.slice(4,7) + '-' + n.slice(7);
-  return n;
-}
-
-// ── Utilities ────────────────────────────────────────────────
-function today()       { return new Date().toISOString().slice(0, 10); }
-function fmtMoney(n)   { return '$' + Number(n || 0).toLocaleString(); }
-function fmtDate(s)    { if (!s) return ''; const [y,m,d] = s.split('-'); return `${y}/${m}/${d}`; }
-function escHtml(s)    { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function statusLabel(s) {
-  return {pending:'待付款', paid:'已付款', picked_up:'已取貨', cancelled:'已取消'}[s] || s;
-}
-function statusBdg(s) {
-  return {pending:'bdg-pending', paid:'bdg-paid', picked_up:'bdg-picked', cancelled:'bdg-cancel'}[s] || '';
-}
-
-// ── Toast & Modal ─────────────────────────────────────────────
-function toast(msg, type='') {
-  const el = document.getElementById('toast-el');
-  el.innerHTML = `<div class="toast${type?' '+type:''}">${msg}</div>`;
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.innerHTML = ''; }, 2800);
-}
-
-function showConfirm(msg, cb, label='確定', isDanger=true) {
-  _confirmCb = cb;
-  document.getElementById('modal-el').innerHTML = `
-    <div class="moverlay"><div class="modal">
-      <div class="modal-title">⚠️ 確認操作</div>
-      <div class="modal-msg">${msg}</div>
-      <div class="modal-acts">
-        <button class="btn btn-out" onclick="closeModal()">取消</button>
-        <button class="btn ${isDanger?'btn-err':'btn-pri'}" onclick="_runConfirm()">${escHtml(label)}</button>
-      </div>
-    </div></div>`;
-}
-function _runConfirm() { closeModal(); _confirmCb && _confirmCb(); }
-function closeModal()  { document.getElementById('modal-el').innerHTML = ''; _confirmCb = null; }
-
-// ════════════════════════════════════════════════════════════
-//  FIREBASE
-// ════════════════════════════════════════════════════════════
-function initFirebase() {
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-    loadSettings();
-  } catch (e) {
-    toast('Firebase 初始化失敗：' + e.message, 'err');
-    render();
-  }
-}
-
-async function loadSettings() {
-  try {
-    const doc = await db.collection('config').doc('settings').get();
-    if (doc.exists) {
-      S.settings = doc.data();
-      // 入場碼驗證
-      const unlocked = sessionStorage.getItem('hk_entry');
-      if (S.settings.entryCode && unlocked !== S.settings.entryCode) {
-        S.view = 'entry';
-      }
+function calcOrderTotal(items, products) {
+  let t = 0;
+  (items||[]).forEach(it => {
+    const p = (products||[]).find(x => x.id === it.productId);
+    if (!p) return;
+    if (it.variantId) {
+      const v = (p.variants||[]).find(x => x.id === it.variantId);
+      if (v) t += (v.price||p.price||0) * (it.qty||0);
     } else {
-      S.settings = buildDefaultSettings();
-      await db.collection('config').doc('settings').set(S.settings);
-    }
-  } catch (e) {
-    console.error('loadSettings:', e);
-    S.settings = buildDefaultSettings();
-  }
-  render();
-}
-
-function buildDefaultSettings() {
-  return {
-    roundId:       'r_' + Date.now(),
-    roundName:     '半吊子廚房團購',
-    description:   '手工現烤雪球餅乾，每罐20顆，使用頂級無水奶油製作。',
-    isOpen:        true,
-    orderCount:    0,
-    closedAt:      null,
-    adminPassword: '0000',
-    entryCode:     '',       // 入場碼（空白表示不需要）
-    products: [
-      {id:'p1', name:'招牌鹹蛋雪球',   price:230, unit:'罐', desc:'鹹蛋黃爆漿，每罐20顆', maxQty:10, active:true},
-      {id:'p2', name:'經典原味雪球',   price:230, unit:'罐', desc:'入口即化，奶香十足',   maxQty:10, active:true},
-      {id:'p3', name:'桂花烏龍茶雪球', price:240, unit:'罐', desc:'台灣在地烏龍茶風味',   maxQty:10, active:true},
-      {id:'p4', name:'可可2.0雪球',    price:240, unit:'罐', desc:'濃郁可可，層次豐富',   maxQty:10, active:true},
-      {id:'p5', name:'海鹽焦糖雪球',   price:270, unit:'罐', desc:'法式焦糖，甜鹹平衡',   maxQty:10, active:true},
-    ],
-    pickupDates:   [],
-    paymentInfo:   '匯款帳號：玉山銀行 808-123456789\n戶名：半吊子廚房\n\n請於下單後 24 小時內完成匯款\n並截圖傳至 LINE 確認。',
-  };
-}
-
-// ════════════════════════════════════════════════════════════
-//  RENDER ENGINE
-// ════════════════════════════════════════════════════════════
-function showView(v) {
-  // 進入下單頁前，若有入場碼且尚未解鎖，先顯示入場碼頁
-  if (v === 'home' && S.settings?.entryCode) {
-    const unlocked = sessionStorage.getItem('hk_entry');
-    if (unlocked !== S.settings.entryCode) { S.view = 'entry'; render(); return; }
-  }
-  S.view = v; render();
-}
-
-function render() {
-  _renderHeader();
-  _renderNav();
-  document.getElementById('atabs-el').innerHTML = '';
-  const el = document.getElementById('pg-el');
-
-  switch (S.view) {
-    case 'entry':       el.innerHTML = renderEntry();      break;
-    case 'home':        el.innerHTML = renderHome();       break;
-    case 'done':        el.innerHTML = renderDone();       break;
-    case 'inquiry':     el.innerHTML = renderInquiry();    break;
-    case 'admin-login': el.innerHTML = renderAdminLogin(); break;
-    case 'admin':
-      document.getElementById('atabs-el').innerHTML = _renderAdminTabs();
-      el.innerHTML = _renderAdminContent();
-      break;
-    case 'settings':    el.innerHTML = renderSettings();   break;
-    default:            el.innerHTML = renderHome();
-  }
-
-  const w = document.getElementById('pg-wrapper');
-  if (w) w.scrollTop = 0;
-}
-
-function _renderHeader() {
-  const el = document.getElementById('hd-el');
-  const isAdmin = S.view === 'admin' || S.view === 'settings';
-  if (isAdmin) {
-    el.innerHTML = `<div class="hd">
-      <div><div class="hd-brand">半吊子廚房</div><div class="hd-sub">管理後台</div></div>
-      <div style="display:flex;gap:8px">
-        <button class="hd-btn" onclick="showView('settings')">⚙ 設定</button>
-        <button class="hd-btn" onclick="adminLogout()">登出</button>
-      </div>
-    </div>`;
-  } else if (S.view === 'admin-login') {
-    el.innerHTML = `<div class="hd">
-      <div><div class="hd-brand">半吊子廚房</div><div class="hd-sub">管理員登入</div></div>
-      <button class="hd-btn" onclick="showView('home')">← 返回</button>
-    </div>`;
-  } else {
-    const name = S.settings?.roundName || '半吊子廚房';
-    el.innerHTML = `<div class="hd">
-      <div><div class="hd-brand">${escHtml(name)}</div><div class="hd-sub">美食團購</div></div>
-      <button class="hd-btn" onclick="showView('admin-login')">管理</button>
-    </div>`;
-  }
-}
-
-function _renderNav() {
-  const nav = document.getElementById('nav-el');
-  const consumer = ['home','done','inquiry','entry'].includes(S.view);
-  nav.style.display = consumer ? 'flex' : 'none';
-  if (!consumer) return;
-  nav.innerHTML = [
-    {k:'home',    icon:'🛒', lbl:'下單'},
-    {k:'inquiry', icon:'🔍', lbl:'查詢訂單'},
-  ].map(t => {
-    const on = t.k === 'home'
-      ? (S.view === 'home' || S.view === 'done')
-      : S.view === t.k;
-    return `<button class="nb${on?' on':''}" onclick="showView('${t.k}')">
-      <span class="ni">${t.icon}</span>${t.lbl}</button>`;
-  }).join('');
-}
-
-// ════════════════════════════════════════════════════════════
-//  ENTRY — 入場碼驗證頁
-//  每次開團設定新入場碼，只分享給社群成員
-//  sessionStorage 記住本次瀏覽器已解鎖，關閉分頁後重置
-// ════════════════════════════════════════════════════════════
-function renderEntry() {
-  const name = S.settings?.roundName || '半吊子廚房';
-  return `
-  <div style="max-width:340px;margin:60px auto 0;padding:0 14px">
-    <div class="card" style="text-align:center;padding:36px 24px">
-      <div style="font-size:48px;margin-bottom:14px">🔐</div>
-      <div style="font-family:'Noto Serif TC';font-size:20px;font-weight:700;color:var(--pri);margin-bottom:6px">
-        ${escHtml(name)}
-      </div>
-      <div style="font-size:13px;color:var(--txt2);margin-bottom:24px;line-height:1.7">
-        本次團購為社群專屬<br>請輸入入場碼進入
-      </div>
-      <div class="fld" style="text-align:left">
-        <label class="lbl">入場碼</label>
-        <input class="inp" id="entry-code" type="text" inputmode="numeric"
-          placeholder="請輸入入場碼"
-          onkeydown="if(event.key==='Enter') checkEntryCode()">
-      </div>
-      <button class="btn btn-acc btn-blk" onclick="checkEntryCode()" style="margin-top:8px">
-        進入 →
-      </button>
-    </div>
-  </div>`;
-}
-
-function checkEntryCode() {
-  const input = document.getElementById('entry-code')?.value.trim() || '';
-  if (!input) { toast('請輸入入場碼', 'err'); return; }
-  if (input === S.settings?.entryCode) {
-    sessionStorage.setItem('hk_entry', input); // 本次瀏覽器記住已解鎖
-    S.view = 'home';
-    render();
-  } else {
-    toast('入場碼錯誤', 'err');
-    const el = document.getElementById('entry-code');
-    if (el) { el.value = ''; el.focus(); }
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  HOME — Consumer order form
-// ════════════════════════════════════════════════════════════
-function renderHome() {
-  if (!S.settings) return `<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">載入中…</div></div>`;
-
-  const s = S.settings;
-  if (!s.isOpen) {
-    return `<div class="hero" style="margin-bottom:0">
-      <div class="hero-tag closed">已結團</div>
-      <div class="hero-title">${escHtml(s.roundName)}</div>
-      <div class="hero-desc">本次團購已結束，感謝您的支持！<br>期待與您下次再見 🍪</div>
-    </div>`;
-  }
-
-  const activeProds = (s.products || []).filter(p => p.active);
-  const { totalItems, totalAmt, summaryRows } = _calcCart(activeProds);
-
-  const heroMeta = (s.pickupDates || []).length
-    ? `<div class="hero-meta"><div class="hero-meta-item">📅 取貨日：${s.pickupDates.map(fmtDate).join('、')}</div></div>`
-    : '';
-
-  const prodCards = activeProds.length ? activeProds.map(p => {
-    const qty = S.qtyMap[p.id] || 0;
-    return `<div class="prod-card">
-      <div class="prod-info">
-        <div class="prod-name">${escHtml(p.name)}</div>
-        ${p.desc ? `<div class="prod-desc">${escHtml(p.desc)}</div>` : ''}
-      </div>
-      <div class="prod-price">${fmtMoney(p.price)}<span style="font-size:11px;font-weight:400;color:var(--txt2)">/${escHtml(p.unit||'罐')}</span></div>
-      <div class="qty-ctrl">
-        <button class="qty-btn" onclick="setQty('${p.id}',${Math.max(0,qty-1)})">−</button>
-        <span class="qty-num">${qty}</span>
-        <button class="qty-btn" onclick="setQty('${p.id}',${Math.min(p.maxQty||99,qty+1)})">+</button>
-      </div>
-    </div>`;
-  }).join('') : `<div style="color:var(--txt2);font-size:14px;padding:10px 0;text-align:center">目前無商品，請稍後再來</div>`;
-
-  const pickupOpts = (s.pickupDates || [])
-    .map(d => `<option value="${d}">${fmtDate(d)}</option>`).join('');
-
-  const summaryHtml = totalItems > 0 ? `
-    <div class="sum-box">
-      ${summaryRows.map(r=>`<div class="sum-row"><span>${escHtml(r.name)} × ${r.qty}</span><span>${fmtMoney(r.subtotal)}</span></div>`).join('')}
-      <div class="sum-total"><span>合計</span><span>${fmtMoney(totalAmt)}</span></div>
-    </div>` : '';
-
-  const payHtml = (totalItems > 0 && s.paymentInfo) ? `
-    <div class="pay-box">
-      <div class="pay-title">💳 付款資訊</div>
-      <div class="pay-text">${escHtml(s.paymentInfo)}</div>
-    </div>` : '';
-
-  return `
-  <div class="hero">
-    <div class="hero-tag">開放訂購中</div>
-    <div class="hero-title">${escHtml(s.roundName)}</div>
-    ${s.description ? `<div class="hero-desc">${escHtml(s.description)}</div>` : ''}
-    ${heroMeta}
-  </div>
-
-  <div class="sec-hd">🍪 選擇商品</div>
-  <div class="card"><div class="prod-grid">${prodCards}</div></div>
-
-  <div class="sec-hd">📋 填寫資料</div>
-  <div class="card">
-    <div class="row">
-      <div class="fld"><label class="lbl">姓名 *</label>
-        <input class="inp" id="f-name" type="text" placeholder="請輸入姓名"></div>
-      <div class="fld"><label class="lbl">手機 *</label>
-        <input class="inp" id="f-phone" type="tel" placeholder="0912345678" inputmode="numeric"></div>
-    </div>
-    ${pickupOpts ? `<div class="fld"><label class="lbl">取貨日期 *</label>
-      <select class="inp" id="f-pickup"><option value="">請選擇取貨日期</option>${pickupOpts}</select></div>` : ''}
-    <div class="fld"><label class="lbl">備註（口味偏好、過敏等，免填）</label>
-      <textarea class="inp" id="f-notes" placeholder="無則免填"></textarea></div>
-  </div>
-
-  ${summaryHtml}
-  ${payHtml}
-
-  <div class="mx mb">
-    <button class="btn ${totalItems>0?'btn-acc':'btn-out'} btn-blk"
-      onclick="submitOrder()" ${totalItems>0?'':'disabled'}>
-      ${totalItems>0 ? `✓ 確認下單 ${fmtMoney(totalAmt)}` : '請先選擇商品'}
-    </button>
-  </div>`;
-}
-
-function _calcCart(products) {
-  let totalItems = 0, totalAmt = 0;
-  const summaryRows = [];
-  (products || []).forEach(p => {
-    const q = S.qtyMap[p.id] || 0;
-    if (q > 0) {
-      totalItems += q; totalAmt += p.price * q;
-      summaryRows.push({ name: p.name, qty: q, subtotal: p.price * q });
+      t += (p.price||0) * (it.qty||0);
     }
   });
-  return { totalItems, totalAmt, summaryRows };
+  return t;
 }
 
-function setQty(pid, qty) {
-  S.qtyMap[pid] = Math.max(0, qty);
-  document.getElementById('pg-el').innerHTML = renderHome();
+function getProductStock(product, orders, roundId) {
+  if (!product.stock || product.stock === 0) return null;
+  const used = (orders||[]).filter(o => o.roundId === roundId).reduce((sum, o) => {
+    return sum + (o.items||[]).filter(it => it.productId === product.id).reduce((s2,it) => s2+(it.qty||0), 0);
+  }, 0);
+  return { used, total: product.stock, left: product.stock - used };
 }
 
-async function submitOrder() {
-  const s = S.settings;
-  if (!s || !s.isOpen) { toast('本團已結束', 'err'); return; }
-
-  const name  = document.getElementById('f-name')?.value.trim() || '';
-  const phone = document.getElementById('f-phone')?.value.trim() || '';
-  const pickup = document.getElementById('f-pickup')?.value || '';
-  const notes = document.getElementById('f-notes')?.value.trim() || '';
-
-  if (!name)                         { toast('請填寫姓名', 'err'); return; }
-  const phoneNorm = normPhone(phone);
-  if (phoneNorm.length < 8)          { toast('手機號碼不正確', 'err'); return; }
-  if ((s.pickupDates||[]).length && !pickup) { toast('請選擇取貨日期', 'err'); return; }
-
-  const activeProds = (s.products || []).filter(p => p.active);
-  const { totalItems, totalAmt, summaryRows } = _calcCart(activeProds);
-  if (totalItems === 0) { toast('請選擇商品', 'err'); return; }
-
-  // ── 重複下單偵測 ──────────────────────────────────────────
-  // 查詢本團是否已有同電話的訂單（status != cancelled）
-  try {
-    const dupSnap = await db.collection('orders')
-      .where('roundId', '==', s.roundId)
-      .where('phone', '==', phoneNorm)
-      .get();
-    const dupOrders = dupSnap.docs
-      .map(d => d.data())
-      .filter(o => o.status !== 'cancelled');
-    if (dupOrders.length > 0) {
-      const orderNos = dupOrders.map(o => o.orderNo || o.id).join('、');
-      const goAhead = await new Promise(resolve => {
-        window._dupResolve = resolve;
-        document.getElementById('modal-el').innerHTML = `
-          <div class="moverlay"><div class="modal">
-            <div class="modal-title" style="color:var(--warn)">⚠️ 偵測到重複下單</div>
-            <div class="modal-msg">您的電話已有訂單：\n<strong style="color:var(--pri)">${escHtml(orderNos)}</strong>\n\n是否為重複下單？\n確定要繼續送出新訂單嗎？</div>
-            <div class="modal-acts" style="flex-direction:column;gap:8px">
-              <button class="btn btn-err btn-blk"
-                onclick="closeModal();window._dupResolve&&window._dupResolve(true)">
-                繼續送出新訂單
-              </button>
-              <button class="btn btn-out btn-blk"
-                onclick="closeModal();window._dupResolve&&window._dupResolve(false)">
-                取消 — 查看我的訂單
-              </button>
-            </div>
-          </div></div>`;
-      });
-      window._dupResolve = null;
-      if (!goAhead) { showView('inquiry'); return; }
-    }
-  } catch(e) { /* 查詢失敗不阻擋下單流程 */ }
-
-  // Generate order number
-  const count = (s.orderCount || 0) + 1;
-  const orderNo = `HK-${today().replace(/-/g,'').slice(2)}-${String(count).padStart(3,'0')}`;
-
-  const order = {
-    roundId:      s.roundId,
-    roundName:    s.roundName,
-    orderNo,
-    name,
-    phone:        phoneNorm,  // ← 純數字，確保查詢一致
-    phoneDisplay: phone,      // ← 原始輸入，顯示用
-    pickupDate:   pickup,
-    notes,
-    items:        summaryRows,
-    total:        totalAmt,
-    status:       'pending',
-    createdAt:    new Date().toISOString(),
-  };
-
-  const btn = document.querySelector('#pg-el .btn-acc');
-  if (btn) { btn.disabled = true; btn.textContent = '下單中…'; }
-
-  try {
-    await db.collection('orders').doc(orderNo).set(order);
-    await db.collection('config').doc('settings').update({
-      orderCount: firebase.firestore.FieldValue.increment(1)
-    });
-    S.settings.orderCount = count;
-    S.doneOrder = order;
-    S.qtyMap = {};
-    S.view = 'done';
-    render();
-  } catch (e) {
-    toast('下單失敗：' + e.message, 'err');
-    if (btn) { btn.disabled = false; btn.textContent = `✓ 確認下單 ${fmtMoney(totalAmt)}`; }
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  DONE — Order success
-// ════════════════════════════════════════════════════════════
-function renderDone() {
-  const o = S.doneOrder;
-  if (!o) { showView('home'); return ''; }
-  return `
-  <div class="card" style="margin-top:24px;text-align:center;padding:28px 20px">
-    <div style="font-size:52px;margin-bottom:14px">🎉</div>
-    <div style="font-family:'Noto Serif TC';font-size:20px;font-weight:700;color:var(--ok);margin-bottom:8px">下單成功！</div>
-    <div style="font-size:24px;font-weight:700;color:var(--pri);letter-spacing:.08em;background:var(--bg2);border-radius:8px;padding:8px 16px;display:inline-block;margin-bottom:8px">${o.orderNo}</div>
-    <div style="font-size:13px;color:var(--txt2)">請記下此訂單編號，或用手機號碼查詢訂單狀態</div>
-  </div>
-  <div class="card">
-    <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--pri)">訂單明細</div>
-    ${o.items.map(it=>`<div class="sum-row"><span>${escHtml(it.name)} × ${it.qty}</span><span>${fmtMoney(it.subtotal)}</span></div>`).join('')}
-    <div class="sum-total"><span>合計</span><span>${fmtMoney(o.total)}</span></div>
-    ${o.pickupDate?`<div style="font-size:13px;color:var(--txt2);margin-top:10px">📅 取貨日：${fmtDate(o.pickupDate)}</div>`:''}
-    ${o.name?`<div style="font-size:13px;color:var(--txt2);margin-top:4px">👤 ${escHtml(o.name)}・${fmtPhone(o.phone)}</div>`:''}
-  </div>
-  ${S.settings?.paymentInfo ? `
-  <div class="pay-box" style="margin:0 14px 14px">
-    <div class="pay-title">💳 請完成付款</div>
-    <div class="pay-text">${escHtml(S.settings.paymentInfo)}</div>
-  </div>` : ''}
-  <div class="mx mb"><button class="btn btn-out btn-blk" onclick="showView('home')">← 返回首頁</button></div>`;
-}
-
-// ════════════════════════════════════════════════════════════
-//  INQUIRY — Consumer order lookup
-//  ▸ 電話查詢：先 normPhone，不用 orderBy（避免複合索引問題）
-//  ▸ 錯誤訊息：直接顯示 Firestore 錯誤，不靜默吞掉
-// ════════════════════════════════════════════════════════════
-function renderInquiry() {
-  let resultsHtml = '';
-
-  if (S.inquiryError) {
-    resultsHtml = `<div class="err-box">⚠️ 查詢失敗：${escHtml(S.inquiryError)}<br>
-      <span style="font-size:12px;opacity:.8">如持續發生，請聯繫店家</span></div>`;
-  } else if (S.inquiryResults !== null) {
-    if (S.inquiryResults.length === 0) {
-      resultsHtml = `<div class="empty">
-        <div class="empty-icon">🔍</div>
-        <div class="empty-text">找不到符合的訂單<br>
-        <span style="font-size:12px">請確認手機號碼是否與下單時一致<br>（純數字，不含破折號）</span></div>
-      </div>`;
-    } else {
-      resultsHtml = S.inquiryResults.map(o => `
-        <div class="inq-card">
-          <div class="inq-hd">
-            <div class="inq-no">${escHtml(o.orderNo || o.id)}</div>
-            <span class="bdg ${statusBdg(o.status)}">${statusLabel(o.status)}</span>
-          </div>
-          <div class="inq-items">
-            ${(o.items||[]).map(it=>`${escHtml(it.name)} × ${it.qty}`).join('<br>')}
-          </div>
-          <div class="inq-meta">
-            <span>💰 ${fmtMoney(o.total)}</span>
-            ${o.pickupDate ? `<span>📅 ${fmtDate(o.pickupDate)}</span>` : ''}
-            <span>🕐 ${o.createdAt ? o.createdAt.slice(0,10) : ''}</span>
-          </div>
-          ${o.roundName ? `<div style="font-size:11px;color:var(--txt2);margin-top:6px">團次：${escHtml(o.roundName)}</div>` : ''}
-        </div>`).join('');
-    }
-  }
-
-  return `
-  <div class="sec-hd" style="margin-top:14px">🔍 訂單查詢</div>
-  <div class="card">
-    <div class="fld">
-      <label class="lbl">手機號碼（下單時填的）</label>
-      <input class="inp" id="iq-phone" type="tel" inputmode="numeric"
-        placeholder="0912345678（純數字）" value="${escHtml(S.inquiryPhone)}">
-    </div>
-    <div class="divider">── 或 ──</div>
-    <div class="fld" style="margin-bottom:16px">
-      <label class="lbl">訂單編號</label>
-      <input class="inp" id="iq-no" type="text"
-        placeholder="例：HK-260601-001" value="${escHtml(S.inquiryOrderNo)}">
-    </div>
-    <button class="btn btn-acc btn-blk" onclick="doInquiry()">查詢</button>
-  </div>
-  ${resultsHtml}`;
-}
-
-async function doInquiry() {
-  const phone   = document.getElementById('iq-phone')?.value.trim() || '';
-  const orderNo = document.getElementById('iq-no')?.value.trim() || '';
-
-  if (!phone && !orderNo) { toast('請輸入手機號碼或訂單編號', 'err'); return; }
-
-  S.inquiryPhone    = phone;
-  S.inquiryOrderNo  = orderNo;
-  S.inquiryResults  = null;
-  S.inquiryError    = null;
-
-  // Show searching state
-  document.getElementById('pg-el').innerHTML = renderInquiry();
-
-  try {
-    if (orderNo) {
-      // 優先用訂單編號查（document ID 直查，最快最準）
-      const doc = await db.collection('orders').doc(orderNo).get();
-      if (doc.exists) {
-        S.inquiryResults = [{ id: doc.id, ...doc.data() }];
-      } else {
-        // 備用：orderNo 欄位查詢
-        const snap = await db.collection('orders').where('orderNo','==',orderNo).get();
-        S.inquiryResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      }
-    } else {
-      // ── 電話查詢 ──────────────────────────────────────────────
-      // ▸ 不用 .orderBy()，避免觸發複合索引要求導致靜默失敗
-      // ▸ 改為 client-side sort
-      const phoneNorm = normPhone(phone);
-      if (phoneNorm.length < 8) { toast('手機號碼格式不正確', 'err'); return; }
-
-      const snap = await db.collection('orders')
-        .where('phone', '==', phoneNorm)   // ← 純數字比對
-        .get();
-
-      S.inquiryResults = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    }
-  } catch (e) {
-    // ▸ 錯誤一律顯示，不靜默轉成空結果
-    S.inquiryError = e.message;
-    console.error('Inquiry error:', e);
-  }
-
-  render();
-}
-
-// ════════════════════════════════════════════════════════════
-//  ADMIN LOGIN
-// ════════════════════════════════════════════════════════════
-function renderAdminLogin() {
-  return `
-  <div style="max-width:340px;margin:40px auto 0;padding:0 14px">
-    <div class="card" style="text-align:center;padding:32px 24px">
-      <div style="font-size:44px;margin-bottom:14px">🔑</div>
-      <div style="font-family:'Noto Serif TC';font-size:18px;font-weight:700;color:var(--pri);margin-bottom:6px">管理員登入</div>
-      <div style="font-size:13px;color:var(--txt2);margin-bottom:20px">請輸入管理員密碼</div>
-      <div class="fld">
-        <input class="inp" id="admin-pw" type="password" placeholder="密碼"
-          onkeydown="if(event.key==='Enter') doAdminLogin()">
-      </div>
-      <button class="btn btn-pri btn-blk" onclick="doAdminLogin()" style="margin-top:6px">登入</button>
-    </div>
-  </div>`;
-}
-
-async function doAdminLogin() {
-  const pw = document.getElementById('admin-pw')?.value || '';
-  if (!S.settings) { toast('設定載入中，請稍候', 'warn'); return; }
-  if (pw !== S.settings.adminPassword) { toast('密碼錯誤', 'err'); return; }
-
-  S.adminLoggedIn = true;
-  await loadAdminOrders();
-  S.view = 'admin';
-  S.adminTab = 'orders';
-  render();
-}
-
-function adminLogout() {
-  S.adminLoggedIn = false;
-  S.orders = [];
-  S.allOrders = [];
-  S.view = 'home';
-  render();
-}
-
-// ════════════════════════════════════════════════════════════
-//  ADMIN — Load orders
-// ════════════════════════════════════════════════════════════
-async function loadAdminOrders() {
-  if (!db || !S.settings) return;
-  try {
-    const snap = await db.collection('orders')
-      .where('roundId', '==', S.settings.roundId)
-      .get();
-    S.orders = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  } catch (e) {
-    toast('載入訂單失敗：' + e.message, 'err');
-    S.orders = [];
-  }
-}
-
-async function loadAllOrders() {
-  if (!db) return;
-  try {
-    const snap = await db.collection('orders').get();
-    S.allOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) {
-    toast('載入失敗：' + e.message, 'err');
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  ADMIN TABS
-// ════════════════════════════════════════════════════════════
-function _renderAdminTabs() {
-  return `<div class="atabs">${[
-    {k:'orders', lbl:'📋 訂單'},
-    {k:'pickup', lbl:'🏪 取貨'},
-    {k:'csv',    lbl:'📊 匯出'},
-    {k:'migrate',lbl:'📦 移轉'},
-    {k:'fix',    lbl:'🔧 修復'},
-    {k:'close',  lbl:'🔒 結團', danger:true},
-  ].map(t=>`<button class="atab${S.adminTab===t.k?' on':''}${t.danger?' danger':''}"
-    onclick="switchAdminTab('${t.k}')">${t.lbl}</button>`).join('')}</div>`;
-}
-
-async function switchAdminTab(tab) {
-  S.adminTab = tab;
-  if (['orders','pickup','csv'].includes(tab)) await loadAdminOrders();
-  if (['migrate','fix'].includes(tab)) { await loadAdminOrders(); await loadAllOrders(); }
-  render();
-}
-
-function _renderAdminContent() {
-  switch (S.adminTab) {
-    case 'orders':  return _renderAdminOrders();
-    case 'pickup':  return _renderAdminPickup();
-    case 'csv':     return _renderAdminCSV();
-    case 'migrate': return _renderAdminMigrate();
-    case 'fix':     return _renderAdminFix();
-    case 'close':   return _renderAdminClose();
-  }
-  return '';
-}
-
-// ── Admin: Orders ─────────────────────────────────────────────
-function _renderAdminOrders() {
-  // ── 偵測重複電話（同一團內相同電話 > 1 筆非取消訂單）
-  const phoneCount = {};
-  S.orders.filter(o => o.status !== 'cancelled').forEach(o => {
-    phoneCount[o.phone] = (phoneCount[o.phone] || 0) + 1;
-  });
-  const dupPhones = new Set(Object.keys(phoneCount).filter(p => phoneCount[p] > 1));
-  const dupCount  = S.orders.filter(o => dupPhones.has(o.phone) && o.status !== 'cancelled').length;
-
-  let list = S.orders;
-  const f = S.orderFilter;
-  if (f.search) {
-    const q = f.search.toLowerCase();
-    list = list.filter(o =>
-      o.name?.toLowerCase().includes(q) ||
-      normPhone(o.phone).includes(normPhone(q)) ||
-      o.orderNo?.toLowerCase().includes(q)
-    );
-  }
-  if (f.status === 'dup') {
-    list = list.filter(o => dupPhones.has(o.phone) && o.status !== 'cancelled');
-  } else if (f.status) {
-    list = list.filter(o => o.status === f.status);
-  }
-
-  const total    = S.orders.length;
-  const totalAmt = S.orders.reduce((s,o) => s+(o.total||0), 0);
-  const paid     = S.orders.filter(o => o.status === 'paid').length;
-  const picked   = S.orders.filter(o => o.status === 'picked_up').length;
-  const pending  = S.orders.filter(o => o.status === 'pending').length;
-
-  // 重複訂單警示橫幅
-  const dupBanner = dupCount > 0 ? `
-    <div style="background:#FFF3CD;border-left:4px solid #FFA000;padding:10px 14px;
-      margin:0 14px 10px;border-radius:0 8px 8px 0;display:flex;align-items:center;
-      justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;color:#5D4037">
-        ⚠️ 偵測到 <strong>${dupCount}</strong> 筆可能重複的訂單（${dupPhones.size} 個電話號碼）
-      </span>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-sm" style="background:#FFA000;color:#fff"
-          onclick="S.orderFilter.status='dup';document.getElementById('pg-el').innerHTML=_renderAdminContent()">
-          查看重複訂單
-        </button>
-        <button class="btn btn-out btn-sm" onclick="deleteAllDuplicates()">一鍵刪除重複</button>
-      </div>
-    </div>` : '';
-
-  const stats = `<div class="stat-grid">
-    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-lbl">總訂單數</div></div>
-    <div class="stat-box"><div class="stat-num">${fmtMoney(totalAmt)}</div><div class="stat-lbl">總金額</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:${dupCount>0?'#FFA000':'var(--err)'}">${dupCount > 0 ? dupCount : pending}</div>
-      <div class="stat-lbl">${dupCount > 0 ? '⚠️ 疑似重複' : '待付款'}</div></div>
-    <div class="stat-box"><div class="stat-num" style="color:var(--ok)">${picked}</div><div class="stat-lbl">已取貨</div></div>
-  </div>`;
-
-  const fbar = `<div class="fbar">
-    <input class="inp" type="text" placeholder="搜尋姓名／電話／訂單號"
-      value="${escHtml(f.search)}"
-      oninput="S.orderFilter.search=this.value;document.getElementById('pg-el').innerHTML=_renderAdminContent()">
-    <select class="inp" style="max-width:120px"
-      onchange="S.orderFilter.status=this.value;document.getElementById('pg-el').innerHTML=_renderAdminContent()">
-      <option value=""         ${!f.status           ?'selected':''}>全部</option>
-      <option value="dup"      ${f.status==='dup'    ?'selected':''}>⚠️ 重複訂單</option>
-      <option value="pending"  ${f.status==='pending'?'selected':''}>待付款</option>
-      <option value="paid"     ${f.status==='paid'   ?'selected':''}>已付款</option>
-      <option value="picked_up"${f.status==='picked_up'?'selected':''}>已取貨</option>
-      <option value="cancelled"${f.status==='cancelled'?'selected':''}>已取消</option>
-    </select>
-    <button class="btn btn-out btn-sm" onclick="adminRefresh()">🔄</button>
-  </div>`;
-
-  if (!list.length) return stats + dupBanner + fbar +
-    `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">無符合的訂單</div></div>`;
-
-  const rows = list.map(o => {
-    const isDup = dupPhones.has(o.phone) && o.status !== 'cancelled';
-    return `<tr style="${isDup ? 'background:#FFFDE7' : ''}">
-      <td>
-        <strong style="font-size:11px">${escHtml(o.orderNo||o.id)}</strong>
-        ${isDup ? '<br><span style="font-size:10px;color:#FFA000;font-weight:600">⚠️ 疑似重複</span>' : ''}
-      </td>
-      <td>
-        ${escHtml(o.name)}<br>
-        <span style="color:var(--txt2);font-size:11px">${fmtPhone(o.phone)}</span>
-        ${isDup ? `<br><span style="font-size:10px;color:#FFA000">同電話共 ${phoneCount[o.phone]} 筆</span>` : ''}
-      </td>
-      <td style="max-width:140px">${(o.items||[]).map(it=>`${escHtml(it.name)}×${it.qty}`).join('<br>')}</td>
-      <td>${fmtMoney(o.total)}</td>
-      <td>${o.pickupDate?fmtDate(o.pickupDate):'—'}</td>
-      <td><span class="bdg ${statusBdg(o.status)}">${statusLabel(o.status)}</span></td>
-      <td><div class="td-acts">
-        ${o.status==='pending'   ?`<button class="btn btn-ok  btn-sm" onclick="setOrderStatus('${o.id}','paid')">付款✓</button>`:''}
-        ${o.status==='paid'      ?`<button class="btn btn-ok  btn-sm" onclick="setOrderStatus('${o.id}','picked_up')">取貨✓</button>`:''}
-        ${o.status==='picked_up' ?`<button class="btn btn-out btn-sm" onclick="setOrderStatus('${o.id}','paid')">↩撤銷</button>`:''}
-        ${o.status!=='cancelled' ?`<button class="btn btn-out btn-sm" onclick="setOrderStatus('${o.id}','cancelled')">取消</button>`:''}
-        <button class="btn btn-err btn-sm" onclick="deleteOrder('${o.id}')">刪</button>
-      </div></td>
-    </tr>`;
-  }).join('');
-
-  return stats + dupBanner + fbar + `
-  <div class="tbl-wrap" style="margin-top:10px">
-    <table>
-      <thead><tr><th>訂單號</th><th>顧客</th><th>品項</th><th>金額</th><th>取貨日</th><th>狀態</th><th>操作</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div><br>`;
-}
-
-// 一鍵刪除重複：同電話保留最早一筆，刪除其餘
-async function deleteAllDuplicates() {
-  const phoneCount = {};
-  S.orders.filter(o => o.status !== 'cancelled').forEach(o => {
-    if (!phoneCount[o.phone]) phoneCount[o.phone] = [];
-    phoneCount[o.phone].push(o);
-  });
-  const toDelete = [];
-  Object.values(phoneCount).forEach(orders => {
-    if (orders.length <= 1) return;
-    // 保留最早的一筆（createdAt 最小），其餘列入刪除
-    orders.sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||''));
-    toDelete.push(...orders.slice(1));
-  });
-  if (!toDelete.length) { toast('無重複訂單', 'ok'); return; }
-
-  showConfirm(
-    `共發現 ${toDelete.length} 筆重複訂單（保留每個電話最早的一筆）。\n確定全部刪除嗎？`,
-    async () => {
-      try {
-        const batch = db.batch();
-        toDelete.forEach(o => batch.delete(db.collection('orders').doc(o.id)));
-        await batch.commit();
-        toDelete.forEach(o => { S.orders = S.orders.filter(x => x.id !== o.id); });
-        S.orderFilter.status = '';
-        render();
-        toast(`已刪除 ${toDelete.length} 筆重複訂單`, 'ok');
-      } catch(e) { toast('刪除失敗：' + e.message, 'err'); }
-    }, `刪除 ${toDelete.length} 筆`
-  );
-}
-
-async function adminRefresh() {
-  await loadAdminOrders();
-  render();
-  toast('已重新整理');
-}
-
-async function setOrderStatus(id, status) {
-  try {
-    await db.collection('orders').doc(id).update({ status });
-    const o = S.orders.find(o => o.id === id);
-    if (o) o.status = status;
-    document.getElementById('pg-el').innerHTML = _renderAdminContent();
-    toast('狀態已更新');
-  } catch (e) { toast('更新失敗：' + e.message, 'err'); }
-}
-
-async function deleteOrder(id) {
-  showConfirm('確定要刪除此訂單？此操作無法復原。', async () => {
-    try {
-      await db.collection('orders').doc(id).delete();
-      S.orders = S.orders.filter(o => o.id !== id);
-      document.getElementById('pg-el').innerHTML = _renderAdminContent();
-      toast('訂單已刪除');
-    } catch (e) { toast('刪除失敗：' + e.message, 'err'); }
-  });
-}
-
-// ── Admin: Pickup ─────────────────────────────────────────────
-function _renderAdminPickup() {
-  const orders = S.orders.filter(o => o.status !== 'cancelled');
-  if (!orders.length) return `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">目前無訂單</div></div>`;
-
-  const groups = {};
-  orders.forEach(o => {
-    const key = o.pickupDate || '未選擇日期';
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(o);
-  });
-
-  return Object.entries(groups).sort(([a],[b]) => a.localeCompare(b)).map(([date, list]) => {
-    const pickedCount = list.filter(o => o.status === 'picked_up').length;
-    const rows = list.map(o => `
-      <div class="pickup-row${o.status==='picked_up'?' picked':''}">
-        <input type="checkbox" class="pickup-cb" ${o.status==='picked_up'?'checked':''}
-          onchange="togglePickup('${o.id}',this.checked)">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:500;font-size:14px">${escHtml(o.name)}</div>
-          <div style="font-size:11px;color:var(--txt2)">${fmtPhone(o.phone)}</div>
-          <div style="font-size:12px;color:var(--txt2);margin-top:2px">
-            ${(o.items||[]).map(it=>`${escHtml(it.name)}×${it.qty}`).join('、')}
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:700;font-size:13px;color:var(--pri)">${fmtMoney(o.total)}</div>
-          <span class="bdg ${statusBdg(o.status)}" style="font-size:10px">${statusLabel(o.status)}</span>
-        </div>
-      </div>`).join('');
-
-    return `<div class="pickup-group">
-      <div class="pickup-hd">
-        <span style="font-family:'Noto Serif TC';font-size:15px;font-weight:700">
-          ${date==='未選擇日期' ? date : fmtDate(date)}
-        </span>
-        <span style="font-size:12px;opacity:.8">${pickedCount}/${list.length} 已取貨</span>
-      </div>
-      ${rows}
-    </div>`;
-  }).join('') + '<br>';
-}
-
-async function togglePickup(id, checked) {
-  await setOrderStatus(id, checked ? 'picked_up' : 'paid');
-}
-
-// ── Admin: CSV ────────────────────────────────────────────────
-function _renderAdminCSV() {
-  const counts = {
-    all:      S.orders.length,
-    pending:  S.orders.filter(o=>o.status==='pending').length,
-    paid:     S.orders.filter(o=>o.status==='paid').length,
-    picked_up:S.orders.filter(o=>o.status==='picked_up').length,
-  };
-  return `
-  <div class="card" style="margin-top:14px">
-    <div style="font-weight:700;font-size:15px;color:var(--pri);margin-bottom:14px">📊 匯出訂單 CSV</div>
-    <div class="fld"><label class="lbl">篩選狀態</label>
-      <select class="inp" id="csv-status">
-        <option value="">全部（${counts.all} 筆）</option>
-        <option value="pending">待付款（${counts.pending} 筆）</option>
-        <option value="paid">已付款（${counts.paid} 筆）</option>
-        <option value="picked_up">已取貨（${counts.picked_up} 筆）</option>
-      </select>
-    </div>
-    <button class="btn btn-acc btn-blk" onclick="doExportCSV()">⬇ 下載訂單 CSV</button>
-  </div>
-  <div class="card">
-    <div style="font-weight:700;font-size:15px;color:var(--pri);margin-bottom:8px">🏪 取貨核對表</div>
-    <div style="font-size:13px;color:var(--txt2);margin-bottom:12px">依取貨日分組，橫向列出各品項數量</div>
-    <button class="btn btn-out btn-blk" onclick="doExportPickupCSV()">⬇ 下載取貨清單 CSV</button>
-  </div>`;
-}
-
-function doExportCSV() {
-  const filter = document.getElementById('csv-status')?.value || '';
-  const list = filter ? S.orders.filter(o => o.status === filter) : S.orders;
-  const rows = [['訂單號','姓名','電話','品項','金額','取貨日','狀態','下單時間','備註']];
-  list.forEach(o => rows.push([
-    o.orderNo||o.id, o.name, fmtPhone(o.phone),
-    (o.items||[]).map(it=>`${it.name}×${it.qty}`).join('；'),
-    o.total, o.pickupDate||'', statusLabel(o.status),
-    o.createdAt?o.createdAt.slice(0,16).replace('T',' '):'',
-    o.notes||''
-  ]));
-  _downloadCSV(rows, `半吊子廚房_訂單_${today()}.csv`);
-  toast('CSV 已匯出');
-}
-
-function doExportPickupCSV() {
-  const list = S.orders.filter(o => o.status !== 'cancelled');
-  const prodNames = [...new Set(list.flatMap(o => (o.items||[]).map(it => it.name)))];
-  const rows = [['取貨日','姓名','電話','狀態',...prodNames,'合計']];
-  list.sort((a,b)=>(a.pickupDate||'').localeCompare(b.pickupDate||'')||(a.name||'').localeCompare(b.name||''));
-  list.forEach(o => {
-    const m = {};
-    (o.items||[]).forEach(it => { m[it.name] = (m[it.name]||0) + it.qty; });
-    rows.push([
-      o.pickupDate?fmtDate(o.pickupDate):'未選擇',
-      o.name, fmtPhone(o.phone), statusLabel(o.status),
-      ...prodNames.map(n => m[n]||0), o.total
-    ]);
-  });
-  _downloadCSV(rows, `半吊子廚房_取貨清單_${today()}.csv`);
-  toast('取貨清單已匯出');
-}
-
-function _downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' });
+function exportCSV(content, filename) {
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
-// ── Admin: Migrate ────────────────────────────────────────────
-function _renderAdminMigrate() {
-  const otherRounds = [...new Set(S.allOrders.map(o=>o.roundId))].filter(id=>id!==S.settings?.roundId);
+// ── Loading ──────────────────────────────────────────────────
+function Loading({ text = '載入中…' }) {
+  return <div className="loading"><div className="spinner"/>{text}</div>;
+}
 
-  return `
-  <div class="card" style="margin-top:14px">
-    <div style="font-weight:700;font-size:15px;color:var(--pri);margin-bottom:8px">📦 移轉舊資料</div>
-    <div style="font-size:13px;color:var(--txt2);margin-bottom:16px;line-height:1.7">
-      將其他團次的訂單移轉到本團，或從 JSON 匯入歷史訂單。</div>
-
-    ${otherRounds.length ? `
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:10px">從其他團次移轉</div>
-      <div class="fld"><label class="lbl">來源團次（${otherRounds.length} 個）</label>
-        <select class="inp" id="migrate-from">
-          <option value="">請選擇</option>
-          ${otherRounds.map(id=>`<option value="${id}">${id}（${S.allOrders.filter(o=>o.roundId===id).length} 筆）</option>`).join('')}
-        </select>
+// ── Access Code Page ─────────────────────────────────────────
+function AccessPage({ onEnter, accessCode }) {
+  const [val, setVal] = useState('');
+  const [err, setErr] = useState('');
+  const submit = () => {
+    if (!accessCode) { onEnter(); return; }
+    if (val === accessCode) onEnter();
+    else { setErr('入場密碼錯誤，請重新輸入'); setVal(''); }
+  };
+  return (
+    <div className="pw-page">
+      <div className="pw-card">
+        <div className="pw-logo">THE HALF KITCHEN</div>
+        <div className="pw-title">半吊子廚房</div>
+        <div className="pw-sub">請輸入本次開團入場密碼</div>
+        <div className="form-group">
+          <input type="password" placeholder="入場密碼" value={val}
+            onChange={e => { setVal(e.target.value); setErr(''); }}
+            onKeyDown={e => e.key==='Enter' && submit()} autoFocus/>
+        </div>
+        {err && <div className="alert alert-red" style={{marginBottom:12}}>{err}</div>}
+        <button className="btn btn-primary btn-block" onClick={submit}>進入</button>
       </div>
-      <button class="btn btn-acc btn-sm" onclick="doMigrateRound()">移轉到本團</button>
-    </div>` : `<div class="warn-box" style="margin:0 0 14px">目前只有本團的訂單，無其他團次可移轉。</div>`}
-
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:14px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">從 JSON 匯入</div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px">
-        格式：陣列，每筆含 name, phone, items([{name,qty,price,subtotal}]), total</div>
-      <textarea class="inp" id="migrate-json" style="min-height:100px;font-family:monospace;font-size:11px"
-        placeholder='[{"name":"陳大明","phone":"0912345678","items":[{"name":"鹹蛋雪球","qty":2,"price":230,"subtotal":460}],"total":460}]'></textarea>
-      <button class="btn btn-pri btn-sm" style="margin-top:10px" onclick="doMigrateJSON()">📥 執行匯入</button>
     </div>
-  </div>`;
+  );
 }
 
-async function doMigrateRound() {
-  const fromId = document.getElementById('migrate-from')?.value;
-  if (!fromId) { toast('請選擇來源團次', 'err'); return; }
-  const list = S.allOrders.filter(o => o.roundId === fromId);
-  if (!list.length) { toast('來源無訂單', 'err'); return; }
-  showConfirm(`確定將 ${list.length} 筆訂單移轉到本團「${S.settings.roundName}」？`, async () => {
-    try {
-      const batch = db.batch();
-      list.forEach(o => batch.update(db.collection('orders').doc(o.id), {
-        roundId: S.settings.roundId, roundName: S.settings.roundName
-      }));
-      await batch.commit();
-      await loadAdminOrders();
-      render();
-      toast(`已移轉 ${list.length} 筆`, 'ok');
-    } catch (e) { toast('移轉失敗：' + e.message, 'err'); }
-  }, '確定移轉', false);
+// ── Product Card ─────────────────────────────────────────────
+function ProductCard({ product, qty, onQtyChange, orders, roundId, disabled }) {
+  const stock = getProductStock(product, orders, roundId);
+  const isFull = stock && stock.left <= 0;
+  const isLow = stock && stock.left > 0 && stock.left <= 5;
+
+  if (product.variants && product.variants.length > 0) {
+    return (
+      <div className={`product-card ${isFull ? 'sold-out' : ''}`}>
+        <div className="product-header">
+          <div className="product-name">{product.name}</div>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'flex-end'}}>
+            {isFull && <span className="badge badge-red">額滿</span>}
+            {isLow && !isFull && <span className="badge badge-amber">⚡ 僅剩少量</span>}
+            {product.perLimit > 0 && <span className="badge badge-purple">限購{product.perLimit}</span>}
+          </div>
+        </div>
+        {product.desc && <div className="product-desc">{product.desc}</div>}
+        {stock && (
+          <div className="progress-wrap">
+            <div className="progress-bg">
+              <div className={`progress-fill ${isFull?'full':isLow?'low':''}`} style={{width:`${Math.min(100,(stock.used/stock.total)*100)}%`}}/>
+            </div>
+            <div className="progress-text">已訂 {stock.used} / {stock.total}</div>
+          </div>
+        )}
+        {product.variants.map(v => {
+          const vQty = qty[v.id] || 0;
+          const vStock = v.stock ? { left: v.stock - ((orders||[]).filter(o=>o.roundId===roundId).reduce((s,o)=>s+(o.items||[]).filter(it=>it.productId===product.id&&it.variantId===v.id).reduce((s2,it)=>s2+(it.qty||0),0),0)) } : null;
+          const vFull = vStock && vStock.left <= 0;
+          return (
+            <div key={v.id} className="variant-row">
+              <span className="variant-name">{v.name} <span style={{color:v.price?'var(--accent)':'var(--text-muted)',fontWeight:600}}>{fmtMoney(v.price||product.price)}</span></span>
+              <div className="qty-control">
+                {vFull && <span className="badge badge-red">額滿</span>}
+                {!vFull && <>
+                  <button className="qty-btn qty-btn-minus" disabled={vQty<=0||disabled} onClick={()=>onQtyChange(product.id,v.id,vQty-1)}>−</button>
+                  <span className="qty-num">{vQty}</span>
+                  <button className="qty-btn qty-btn-plus" disabled={disabled||(product.perLimit>0&&vQty>=product.perLimit)} onClick={()=>onQtyChange(product.id,v.id,vQty+1)}>+</button>
+                </>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const curQty = qty[product.id] || 0;
+  return (
+    <div className={`product-card ${isFull ? 'sold-out' : ''}`}>
+      <div className="product-header">
+        <div>
+          <div className="product-name">{product.name}</div>
+          {product.desc && <div className="product-desc" style={{marginTop:4}}>{product.desc}</div>}
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div className="product-price">{fmtMoney(product.price)}</div>
+          {isFull && <span className="badge badge-red" style={{marginTop:4}}>額滿</span>}
+          {isLow && !isFull && <span className="badge badge-amber" style={{marginTop:4}}>⚡ 僅剩少量</span>}
+        </div>
+      </div>
+      {product.perLimit > 0 && <div style={{marginBottom:8}}><span className="badge badge-purple">限購 {product.perLimit} 件</span></div>}
+      {stock && (
+        <div className="progress-wrap">
+          <div className="progress-bg">
+            <div className={`progress-fill ${isFull?'full':isLow?'low':''}`} style={{width:`${Math.min(100,(stock.used/stock.total)*100)}%`}}/>
+          </div>
+          <div className="progress-text">已訂 {stock.used} / {stock.total}</div>
+        </div>
+      )}
+      {!isFull && (
+        <div className="qty-control" style={{marginTop:10}}>
+          <button className="qty-btn qty-btn-minus" disabled={curQty<=0||disabled} onClick={()=>onQtyChange(product.id,null,curQty-1)}>−</button>
+          <span className="qty-num">{curQty}</span>
+          <button className="qty-btn qty-btn-plus" disabled={disabled||(product.perLimit>0&&curQty>=product.perLimit)} onClick={()=>onQtyChange(product.id,null,curQty+1)}>+</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
-async function doMigrateJSON() {
-  const raw = document.getElementById('migrate-json')?.value.trim() || '';
-  if (!raw) { toast('請貼上 JSON 資料', 'err'); return; }
-  let data;
-  try { data = JSON.parse(raw); } catch(e) { toast('JSON 格式錯誤', 'err'); return; }
-  if (!Array.isArray(data)) { toast('格式錯誤：需為陣列 [...]', 'err'); return; }
-  showConfirm(`確定匯入 ${data.length} 筆訂單到本團？`, async () => {
-    try {
-      const base = S.settings.orderCount || 0;
-      const batch = db.batch();
-      data.forEach((o, i) => {
-        const no = `HK-${today().replace(/-/g,'').slice(2)}-M${String(base+i+1).padStart(3,'0')}`;
-        batch.set(db.collection('orders').doc(no), {
-          roundId: S.settings.roundId, roundName: S.settings.roundName,
-          orderNo: no, name: o.name||'', phone: normPhone(o.phone||''),
-          phoneDisplay: o.phone||'', items: o.items||[], total: o.total||0,
-          pickupDate: o.pickupDate||'', notes: o.notes||'',
-          status: o.status||'pending',
-          createdAt: o.createdAt||new Date().toISOString(),
-          migratedFrom: 'json',
+// ── Order Page ───────────────────────────────────────────────
+function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
+  const [nickname, setNickname] = useState('');
+  const [phone, setPhone] = useState('');
+  const [note, setNote] = useState('');
+  const [qty, setQty] = useState({});
+  const [page, setPage] = useState('order'); // order / confirm / done
+  const [submitting, setSubmitting] = useState(false);
+  const [doneOrder, setDoneOrder] = useState(null);
+
+  const products = config.products || [];
+  const isExpired = config.deadline && new Date() > new Date(config.deadline);
+
+  const handleQty = (productId, variantId, val) => {
+    const key = variantId ? `${productId}_${variantId}` : productId;
+    setQty(prev => ({ ...prev, [key]: Math.max(0, val) }));
+  };
+
+  const getQtyObj = () => {
+    const result = {};
+    Object.entries(qty).forEach(([k, v]) => { if (v > 0) result[k] = v; });
+    return result;
+  };
+
+  const buildItems = () => {
+    const items = [];
+    products.forEach(p => {
+      if (p.variants && p.variants.length > 0) {
+        p.variants.forEach(v => {
+          const q = qty[`${p.id}_${v.id}`] || 0;
+          if (q > 0) items.push({ productId: p.id, productName: p.name, variantId: v.id, variantName: v.name, price: v.price || p.price, qty: q });
         });
-      });
-      await batch.commit();
-      await db.collection('config').doc('settings').update({
-        orderCount: firebase.firestore.FieldValue.increment(data.length)
-      });
-      S.settings.orderCount = base + data.length;
-      await loadAdminOrders();
-      render();
-      toast(`已匯入 ${data.length} 筆`, 'ok');
-    } catch (e) { toast('匯入失敗：' + e.message, 'err'); }
-  }, '確定匯入', false);
+      } else {
+        const q = qty[p.id] || 0;
+        if (q > 0) items.push({ productId: p.id, productName: p.name, price: p.price, qty: q });
+      }
+    });
+    return items;
+  };
+
+  const items = buildItems();
+  const total = items.reduce((s, it) => s + it.price * it.qty, 0);
+  const hasItems = items.length > 0;
+
+  const goConfirm = () => {
+    if (!nickname.trim()) { alert('請輸入群組暱稱'); return; }
+    if (!phone.trim() || phone.trim().length < 6) { alert('請輸入正確電話'); return; }
+    if (!hasItems) { alert('請至少選擇一項商品'); return; }
+    setPage('confirm');
+  };
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const order = {
+        nickname: nickname.trim(),
+        phone: phone.trim(),
+        name: `${nickname.trim()}（${phone.trim()}）`,
+        items, total, note: note.trim(),
+        ts: Date.now(),
+        roundId: config.roundId,
+        roundName: config.roundName || '第1團',
+        pickedUp: false, pickedUpAt: null
+      };
+      await db.collection('orders').add(order);
+      setDoneOrder(order);
+      setPage('done');
+    } catch (e) { alert('送出失敗：' + e.message); }
+    setSubmitting(false);
+  };
+
+  if (page === 'confirm') return (
+    <div className="app">
+      <div className="header">
+        <div className="brand">THE HALF KITCHEN</div>
+        <h1>{config.title || '半吊子廚房團購'}</h1>
+      </div>
+      <div className="card">
+        <div className="section-title">📋 確認訂單</div>
+        {config.pickupNote && (
+          <div className="alert alert-amber" style={{marginBottom:16}}>
+            <strong>取貨說明：</strong>{config.pickupNote}
+          </div>
+        )}
+        <table className="confirm-table">
+          <tbody>
+            {items.map((it, i) => (
+              <tr key={i}>
+                <td>{it.productName}{it.variantName ? ` · ${it.variantName}` : ''}</td>
+                <td style={{textAlign:'center',color:'var(--text-muted)'}}>×{it.qty}</td>
+                <td>{fmtMoney(it.price * it.qty)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="confirm-total"><span>合計</span><span>{fmtMoney(total)}</span></div>
+        <div style={{marginTop:12,fontSize:13,color:'var(--text-muted)'}}>
+          <span>訂購人：</span><strong>{nickname}（{phone}）</strong>
+          {note && <div style={{marginTop:4}}>備註：{note}</div>}
+        </div>
+      </div>
+      <div style={{display:'flex',gap:10}}>
+        <button className="btn btn-secondary" style={{flex:1}} onClick={()=>setPage('order')}>← 返回修改</button>
+        <button className="btn btn-primary" style={{flex:1}} disabled={submitting} onClick={submit}>{submitting?'送出中…':'確認送出 ✓'}</button>
+      </div>
+    </div>
+  );
+
+  if (page === 'done') return (
+    <div className="app">
+      <div style={{textAlign:'center',padding:'60px 20px'}}>
+        <div style={{fontSize:52,marginBottom:16}}>✅</div>
+        <h2 style={{fontSize:20,marginBottom:8}}>下單成功！</h2>
+        <p style={{color:'var(--text-muted)',fontSize:14,marginBottom:20}}>
+          請以 <strong>{doneOrder?.nickname}</strong> + 電話後四碼 <strong>{doneOrder?.phone?.slice(-4)}</strong> 取貨
+        </p>
+        {config.pickupNote && (
+          <div className="alert alert-amber" style={{textAlign:'left',marginBottom:20}}>
+            <strong>取貨說明：</strong>{config.pickupNote}
+          </div>
+        )}
+        {config.deliveryDate && (
+          <div className="badge badge-green" style={{fontSize:13,padding:'6px 14px',marginBottom:20}}>
+            📅 {config.deliveryDate}
+          </div>
+        )}
+        <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+          <button className="btn btn-secondary" onClick={()=>{setPage('order');setQty({});setNickname('');setPhone('');setNote('');}}>繼續下單</button>
+          <button className="btn btn-ghost" onClick={onGoQuery}>查詢訂單</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="app">
+      <div className="header">
+        <div className="brand">THE HALF KITCHEN</div>
+        <h1>{config.title || '半吊子廚房團購'}</h1>
+        {config.description && <div className="sub">{config.description}</div>}
+        {config.deliveryDate && <div style={{marginTop:6}}><span className="badge badge-green">📅 {config.deliveryDate}</span></div>}
+        {isExpired && <div style={{marginTop:8}}><span className="badge badge-red">⛔ 已截止</span></div>}
+      </div>
+
+      {isExpired ? (
+        <div className="card"><div className="empty">本次團購已截止，感謝參與 🙏</div></div>
+      ) : <>
+        <div className="card">
+          <div className="section-title">👤 訂購資訊</div>
+          <div className="form-group">
+            <label>群組暱稱 *</label>
+            <input placeholder="請輸入你在群組的暱稱" value={nickname} onChange={e=>setNickname(e.target.value)}/>
+          </div>
+          <div className="form-group">
+            <label>聯絡電話 *</label>
+            <input type="tel" placeholder="0912345678" value={phone} onChange={e=>setPhone(e.target.value)}/>
+          </div>
+        </div>
+
+        <div className="section-title" style={{paddingLeft:4}}>🛒 選擇品項</div>
+        {products.length === 0 ? (
+          <div className="card"><div className="empty">目前尚無商品</div></div>
+        ) : products.map(p => (
+          <ProductCard key={p.id} product={p} qty={qty} onQtyChange={handleQty} orders={orders} roundId={config.roundId} disabled={isExpired}/>
+        ))}
+
+        {hasItems && (
+          <div className="card" style={{marginTop:4}}>
+            <div className="section-title">📝 備註</div>
+            <div className="form-group" style={{marginBottom:0}}>
+              <textarea placeholder="特殊需求或備注（可略）" value={note} onChange={e=>setNote(e.target.value)}/>
+            </div>
+          </div>
+        )}
+
+        {hasItems && (
+          <div style={{background:'var(--surface)',borderRadius:14,padding:16,marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontSize:12,color:'var(--text-muted)'}}>小計</div>
+              <div style={{fontSize:20,fontWeight:700,color:'var(--accent)'}}>{fmtMoney(total)}</div>
+            </div>
+            <button className="btn btn-primary" onClick={goConfirm}>下一步 →</button>
+          </div>
+        )}
+      </>}
+
+      <div className="bottom-links">
+        <a onClick={onGoQuery}>查詢訂單</a>
+        <a onClick={onGoAdmin}>管理員入口</a>
+      </div>
+    </div>
+  );
 }
 
-// ── Admin: Fix ────────────────────────────────────────────────
-function _renderAdminFix() {
-  const otherRounds = [...new Set(S.allOrders.map(o=>o.roundId))].filter(id=>id!==S.settings?.roundId);
-  const phoneIssues = S.orders.filter(o => o.phone !== normPhone(o.phone));
+// ── Query Page ───────────────────────────────────────────────
+function QueryPage({ orders, onBack }) {
+  const [phone, setPhone] = useState('');
+  const [result, setResult] = useState(null);
 
-  return `
-  <div class="card" style="margin-top:14px">
-    <div style="font-weight:700;font-size:15px;color:var(--pri);margin-bottom:14px">🔧 修復本團資料</div>
+  const search = () => {
+    if (!phone.trim()) return;
+    const found = orders.filter(o => o.phone === phone.trim());
+    const byRound = {};
+    found.forEach(o => {
+      const k = o.roundId || 'unknown';
+      if (!byRound[k]) byRound[k] = { name: o.roundName || k, orders: [] };
+      byRound[k].orders.push(o);
+    });
+    setResult({ total: found.length, byRound });
+  };
 
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">📱 修復電話格式</div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px;line-height:1.6">
-        將本團所有訂單電話正規化為純數字（修復查詢找不到問題）<br>
-        目前發現 <strong style="color:${phoneIssues.length?'var(--err)':'var(--ok)'}">${phoneIssues.length}</strong> 筆格式不一致</div>
-      <button class="btn ${phoneIssues.length?'btn-acc':'btn-out'} btn-sm" onclick="fixPhoneNorm()"
-        ${phoneIssues.length?'':'disabled'}>
-        ${phoneIssues.length?`修復 ${phoneIssues.length} 筆`:'格式均正常 ✓'}
+  return (
+    <div className="app">
+      <div className="header">
+        <div className="brand">THE HALF KITCHEN</div>
+        <h1>訂單查詢</h1>
+      </div>
+      <div className="card">
+        <div className="form-group">
+          <label>輸入電話號碼</label>
+          <input type="tel" placeholder="0912345678" value={phone}
+            onChange={e=>setPhone(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&search()}/>
+        </div>
+        <button className="btn btn-primary btn-block" onClick={search}>查詢</button>
+      </div>
+      {result && (
+        result.total === 0 ? (
+          <div className="card"><div className="empty">找不到此電話的訂單記錄</div></div>
+        ) : Object.entries(result.byRound).map(([roundId, { name, orders: ros }]) => (
+          <div key={roundId}>
+            <div className="section-title">{name}</div>
+            {ros.map(o => (
+              <div key={o.id} className="order-row">
+                <div className="order-header">
+                  <span className="order-name">{o.nickname}</span>
+                  <span style={{display:'flex',gap:6,alignItems:'center'}}>
+                    {o.pickedUp && <span className="badge badge-green">已取貨</span>}
+                    <span className="order-total">{fmtMoney(o.total)}</span>
+                  </span>
+                </div>
+                <div className="order-items">
+                  {(o.items||[]).map((it,i) => (
+                    <div key={i}>{it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty}</div>
+                  ))}
+                </div>
+                {o.note && <div className="order-note">備註：{o.note}</div>}
+                <div style={{fontSize:12,color:'var(--text-muted)',marginTop:6}}>{fmtDate(o.ts)}</div>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+      <div className="bottom-links"><a onClick={onBack}>← 返回下單</a></div>
+    </div>
+  );
+}
+
+// ── Admin Login ──────────────────────────────────────────────
+function AdminLogin({ adminPass, onLogin, onBack }) {
+  const [val, setVal] = useState('');
+  const [err, setErr] = useState('');
+  const submit = () => {
+    if (val === adminPass) onLogin();
+    else { setErr('密碼錯誤'); setVal(''); }
+  };
+  return (
+    <div className="pw-page">
+      <div className="pw-card">
+        <div className="pw-logo">THE HALF KITCHEN</div>
+        <div className="pw-title">管理員登入</div>
+        <div className="pw-sub">請輸入管理員密碼</div>
+        <div className="form-group">
+          <input type="password" placeholder="管理員密碼" value={val}
+            onChange={e=>{setVal(e.target.value);setErr('');}}
+            onKeyDown={e=>e.key==='Enter'&&submit()} autoFocus/>
+        </div>
+        {err && <div className="alert alert-red">{err}</div>}
+        <button className="btn btn-primary btn-block" style={{marginBottom:10}} onClick={submit}>登入</button>
+        <button className="btn btn-ghost btn-block" onClick={onBack}>← 返回</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit Order Modal ─────────────────────────────────────────
+function EditOrderModal({ order, config, onSave, onClose }) {
+  const [nickname, setNickname] = useState(order.nickname);
+  const [phone, setPhone] = useState(order.phone);
+  const [note, setNote] = useState(order.note || '');
+  const [items, setItems] = useState(order.items.map(it => ({ ...it })));
+
+  const setItemQty = (i, val) => {
+    const newItems = [...items];
+    newItems[i] = { ...newItems[i], qty: Math.max(0, val) };
+    setItems(newItems);
+  };
+
+  const save = () => {
+    const filteredItems = items.filter(it => it.qty > 0);
+    const total = filteredItems.reduce((s, it) => s + it.price * it.qty, 0);
+    onSave({ ...order, nickname, phone, name: `${nickname}（${phone}）`, note, items: filteredItems, total });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e=>e.target.className==='modal-overlay'&&onClose()}>
+      <div className="modal">
+        <div className="modal-title">✏️ 編輯訂單</div>
+        <div className="form-group">
+          <label>群組暱稱</label>
+          <input value={nickname} onChange={e=>setNickname(e.target.value)}/>
+        </div>
+        <div className="form-group">
+          <label>電話</label>
+          <input value={phone} onChange={e=>setPhone(e.target.value)}/>
+        </div>
+        <div className="divider"/>
+        <div className="section-title" style={{fontSize:14}}>品項數量（設為 0 移除）</div>
+        {items.map((it, i) => (
+          <div key={i} className="variant-row">
+            <span className="variant-name">{it.productName}{it.variantName?` · ${it.variantName}`:''}<br/><span style={{color:'var(--text-muted)',fontSize:12}}>{fmtMoney(it.price)} / 件</span></span>
+            <div className="qty-control">
+              <button className="qty-btn qty-btn-minus" disabled={it.qty<=0} onClick={()=>setItemQty(i,it.qty-1)}>−</button>
+              <span className="qty-num">{it.qty}</span>
+              <button className="qty-btn qty-btn-plus" onClick={()=>setItemQty(i,it.qty+1)}>+</button>
+            </div>
+          </div>
+        ))}
+        <div className="divider"/>
+        <div className="form-group">
+          <label>備註</label>
+          <textarea value={note} onChange={e=>setNote(e.target.value)}/>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button className="btn btn-secondary" style={{flex:1}} onClick={onClose}>取消</button>
+          <button className="btn btn-primary" style={{flex:1}} onClick={save}>儲存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Pickup Page ──────────────────────────────────────────────
+function PickupPage({ config, orders, onRefresh, onBack }) {
+  const [searchPhone, setSearchPhone] = useState('');
+  const [tab, setTab] = useState('search');
+  const roundOrders = orders.filter(o => o.roundId === config.roundId);
+  const notPickedUp = roundOrders.filter(o => !o.pickedUp);
+  const pickedUp = roundOrders.filter(o => o.pickedUp);
+
+  const searchResult = searchPhone ? roundOrders.filter(o => o.phone.includes(searchPhone)) : [];
+
+  const markPickup = async (orderId, val) => {
+    await db.collection('orders').doc(orderId).update({ pickedUp: val, pickedUpAt: val ? Date.now() : null });
+    onRefresh();
+  };
+
+  const copyURGE = () => {
+    const lines = notPickedUp.map(o => `· ${o.nickname}（${o.phone.slice(-4)}）`).join('\n');
+    const msg = `【半吊子廚房取貨提醒】\n以下成員尚未取貨，請盡快領取：\n${lines}\n謝謝 🙏`;
+    navigator.clipboard.writeText(msg).then(() => alert('已複製催取訊息'));
+  };
+
+  const copyList = () => {
+    const lines = notPickedUp.map(o => `${o.nickname} ${o.phone}`).join('\n');
+    navigator.clipboard.writeText(lines).then(() => alert('已複製未取貨名單'));
+  };
+
+  return (
+    <div className="app">
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+        <button className="btn btn-ghost btn-sm" onClick={onBack}>← 返回</button>
+        <h2 style={{fontSize:18}}>取貨管理</h2>
+      </div>
+      <div className="stat-grid">
+        <div className="stat-card"><div className="stat-num">{roundOrders.length}</div><div className="stat-label">訂單數</div></div>
+        <div className="stat-card"><div className="stat-num" style={{color:'var(--green)'}}>{pickedUp.length}</div><div className="stat-label">已取貨</div></div>
+        <div className="stat-card"><div className="stat-num" style={{color:'var(--red)'}}>{notPickedUp.length}</div><div className="stat-label">未取貨</div></div>
+      </div>
+      <div className="tabs">
+        {['search','notpicked','picked'].map(t => (
+          <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>
+            {t==='search'?'搜尋取貨':t==='notpicked'?`未取貨 (${notPickedUp.length})`:`已取貨 (${pickedUp.length})`}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'search' && (
+        <>
+          <div className="card" style={{marginBottom:10}}>
+            <div className="form-group" style={{marginBottom:10}}>
+              <input placeholder="輸入電話搜尋" value={searchPhone} onChange={e=>setSearchPhone(e.target.value)}/>
+            </div>
+          </div>
+          {searchResult.map(o => (
+            <div key={o.id} className="order-row">
+              <div className="order-header">
+                <span className="order-name">{o.nickname}（{o.phone}）</span>
+                <span className="order-total">{fmtMoney(o.total)}</span>
+              </div>
+              <div className="order-items">{(o.items||[]).map((it,i)=><div key={i}>{it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty}</div>)}</div>
+              {!o.pickedUp
+                ? <button className="btn btn-green btn-sm" style={{marginTop:8}} onClick={()=>markPickup(o.id,true)}>✓ 標記已取貨</button>
+                : <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}><span className="badge badge-green">已取貨 {fmtDate(o.pickedUpAt)}</span><button className="btn btn-ghost btn-sm" onClick={()=>markPickup(o.id,false)}>撤銷</button></div>
+              }
+            </div>
+          ))}
+        </>
+      )}
+
+      {tab === 'notpicked' && (
+        <>
+          {notPickedUp.length > 0 && (
+            <div style={{display:'flex',gap:8,marginBottom:12}}>
+              <button className="btn btn-secondary btn-sm" onClick={copyURGE}>📋 複製催取訊息</button>
+              <button className="btn btn-secondary btn-sm" onClick={copyList}>📋 複製名單</button>
+            </div>
+          )}
+          {notPickedUp.length === 0 ? <div className="card"><div className="empty">全員已取貨 🎉</div></div>
+            : notPickedUp.map(o => (
+              <div key={o.id} className="pickup-item">
+                <div>
+                  <div style={{fontWeight:600,fontSize:14}}>{o.nickname}</div>
+                  <div style={{fontSize:13,color:'var(--text-muted)'}}>{o.phone} · {fmtMoney(o.total)}</div>
+                </div>
+                <button className="btn btn-green btn-sm" onClick={()=>markPickup(o.id,true)}>✓ 取貨</button>
+              </div>
+            ))
+          }
+        </>
+      )}
+
+      {tab === 'picked' && (
+        pickedUp.length === 0 ? <div className="card"><div className="empty">尚無取貨記錄</div></div>
+          : pickedUp.map(o => (
+            <div key={o.id} className="pickup-item pickup-done">
+              <div>
+                <div style={{fontWeight:600,fontSize:14}}>{o.nickname}</div>
+                <div style={{fontSize:13,color:'var(--text-muted)'}}>{o.phone} · {fmtMoney(o.total)}</div>
+                <div style={{fontSize:12,color:'var(--text-muted)'}}>{fmtDate(o.pickedUpAt)}</div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={()=>markPickup(o.id,false)}>撤銷</button>
+            </div>
+          ))
+      )}
+    </div>
+  );
+}
+
+// ── Setup Page ───────────────────────────────────────────────
+function SetupPage({ config, onSave, onBack }) {
+  const [form, setForm] = useState({
+    title: config.title || '',
+    description: config.description || '',
+    deliveryDate: config.deliveryDate || '',
+    deadline: config.deadline ? config.deadline.slice(0,16) : '',
+    pickupNote: config.pickupNote || '',
+    adminPass: config.adminPass || '0000',
+    accessCode: config.accessCode || '',
+    roundName: config.roundName || '',
+    products: (config.products || []).map(p => ({ ...p, variants: (p.variants||[]).map(v=>({...v})) }))
+  });
+  const [saving, setSaving] = useState(false);
+
+  const setField = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const addProduct = () => {
+    setField('products', [...form.products, {
+      id: genId(), name: '', desc: '', price: 0, stock: 0, perLimit: 0, variants: []
+    }]);
+  };
+
+  const updateProduct = (i, k, v) => {
+    const ps = [...form.products];
+    ps[i] = { ...ps[i], [k]: v };
+    setField('products', ps);
+  };
+
+  const removeProduct = i => {
+    if (!confirm('確定刪除此品項？')) return;
+    setField('products', form.products.filter((_, idx) => idx !== i));
+  };
+
+  const addVariant = i => {
+    const ps = [...form.products];
+    ps[i] = { ...ps[i], variants: [...(ps[i].variants||[]), { id: genId(), name: '', price: 0, stock: 0 }] };
+    setField('products', ps);
+  };
+
+  const updateVariant = (pi, vi, k, v) => {
+    const ps = [...form.products];
+    const vs = [...(ps[pi].variants||[])];
+    vs[vi] = { ...vs[vi], [k]: v };
+    ps[pi] = { ...ps[pi], variants: vs };
+    setField('products', ps);
+  };
+
+  const removeVariant = (pi, vi) => {
+    const ps = [...form.products];
+    ps[pi] = { ...ps[pi], variants: ps[pi].variants.filter((_,idx)=>idx!==vi) };
+    setField('products', ps);
+  };
+
+  const save = async () => {
+    if (!form.adminPass) { alert('管理員密碼不能空白'); return; }
+    setSaving(true);
+    try {
+      const data = { ...form, deadline: form.deadline ? new Date(form.deadline).toISOString() : '' };
+      await db.collection('config').doc('main').set({ ...config, ...data }, { merge: true });
+      alert('設定已儲存');
+      onSave({ ...config, ...data });
+    } catch (e) { alert('儲存失敗：' + e.message); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="app">
+      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+        <button className="btn btn-ghost btn-sm" onClick={onBack}>← 返回</button>
+        <h2 style={{fontSize:18}}>團購設定</h2>
+      </div>
+
+      <div className="card">
+        <div className="section-title">🔐 密碼設定</div>
+        <div className="form-group">
+          <label>管理員密碼</label>
+          <input value={form.adminPass} onChange={e=>setField('adminPass',e.target.value)} placeholder="管理員密碼"/>
+        </div>
+        <div className="form-group" style={{marginBottom:0}}>
+          <label>入場密碼（消費者入場碼，空白 = 不限制）</label>
+          <input value={form.accessCode} onChange={e=>setField('accessCode',e.target.value)} placeholder="留空則開放所有人"/>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">📋 基本資訊</div>
+        <div className="form-group">
+          <label>團次名稱</label>
+          <input value={form.roundName} onChange={e=>setField('roundName',e.target.value)} placeholder="第1團"/>
+        </div>
+        <div className="form-group">
+          <label>團購名稱</label>
+          <input value={form.title} onChange={e=>setField('title',e.target.value)} placeholder="半吊子廚房 x 雪球餅團購"/>
+        </div>
+        <div className="form-group">
+          <label>說明</label>
+          <textarea value={form.description} onChange={e=>setField('description',e.target.value)} placeholder="團購說明…"/>
+        </div>
+        <div className="form-group">
+          <label>取貨時間（顯示文字）</label>
+          <input value={form.deliveryDate} onChange={e=>setField('deliveryDate',e.target.value)} placeholder="例：6/20（五）下午 1–5 點"/>
+        </div>
+        <div className="form-group">
+          <label>取貨說明（顯示於確認頁）</label>
+          <textarea value={form.pickupNote} onChange={e=>setField('pickupNote',e.target.value)} placeholder="取貨地點與注意事項…"/>
+        </div>
+        <div className="form-group" style={{marginBottom:0}}>
+          <label>截止時間</label>
+          <input type="datetime-local" value={form.deadline} onChange={e=>setField('deadline',e.target.value)}/>
+        </div>
+      </div>
+
+      <div className="section-title" style={{paddingLeft:4}}>🛍️ 商品管理</div>
+      {form.products.map((p, pi) => (
+        <div key={p.id} className="product-edit-card">
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+            <strong style={{fontSize:14}}>品項 {pi+1}</strong>
+            <button className="btn btn-danger btn-sm" onClick={()=>removeProduct(pi)}>刪除</button>
+          </div>
+          <div className="form-group">
+            <label>品名</label>
+            <input value={p.name} onChange={e=>updateProduct(pi,'name',e.target.value)} placeholder="品名"/>
+          </div>
+          <div className="form-group">
+            <label>說明</label>
+            <input value={p.desc||''} onChange={e=>updateProduct(pi,'desc',e.target.value)} placeholder="品項說明（可略）"/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label>單價</label>
+              <input type="number" value={p.price} onChange={e=>updateProduct(pi,'price',+e.target.value)}/>
+            </div>
+            <div className="form-group" style={{marginBottom:0}}>
+              <label>庫存（0=無限）</label>
+              <input type="number" value={p.stock||0} onChange={e=>updateProduct(pi,'stock',+e.target.value)}/>
+            </div>
+          </div>
+          <div className="form-group" style={{marginTop:10}}>
+            <label>每人限購（0=不限）</label>
+            <input type="number" value={p.perLimit||0} onChange={e=>updateProduct(pi,'perLimit',+e.target.value)}/>
+          </div>
+          {(p.variants||[]).length > 0 && <>
+            <div className="divider"/>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>規格</div>
+            {p.variants.map((v, vi) => (
+              <div key={v.id} style={{background:'var(--bg)',borderRadius:8,padding:10,marginBottom:8}}>
+                <div style={{display:'flex',gap:8,marginBottom:6}}>
+                  <input style={{flex:2}} value={v.name} onChange={e=>updateVariant(pi,vi,'name',e.target.value)} placeholder="規格名稱" className="form-group input"/>
+                  <input style={{flex:1}} type="number" value={v.price||''} onChange={e=>updateVariant(pi,vi,'price',+e.target.value)} placeholder="價格" className="form-group input"/>
+                  <button className="btn btn-danger btn-sm" onClick={()=>removeVariant(pi,vi)}>×</button>
+                </div>
+                <input style={{width:'100%'}} type="number" value={v.stock||0} onChange={e=>updateVariant(pi,vi,'stock',+e.target.value)} placeholder="庫存（0=無限）" className="form-group input"/>
+              </div>
+            ))}
+          </>}
+          <button className="btn btn-secondary btn-sm" style={{marginTop:8}} onClick={()=>addVariant(pi)}>+ 新增規格</button>
+        </div>
+      ))}
+      <button className="btn btn-secondary btn-block" style={{marginBottom:14}} onClick={addProduct}>+ 新增品項</button>
+
+      <button className="btn btn-primary btn-block" disabled={saving} onClick={save} style={{marginBottom:20}}>
+        {saving ? '儲存中…' : '💾 儲存設定'}
       </button>
     </div>
-
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">🔗 重新關聯本團 ID</div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px;line-height:1.6">
-        本團 ID：<code>${S.settings?.roundId}</code><br>
-        ${otherRounds.length ? `發現 ${otherRounds.length} 個其他團次，可選擇重新關聯` : '所有訂單都在本團 ✓'}
-      </div>
-      ${otherRounds.length ? `
-      <div class="fld"><select class="inp" id="fix-round-sel">
-        ${otherRounds.map(r=>`<option value="${r}">${r}（${S.allOrders.filter(o=>o.roundId===r).length} 筆）</option>`).join('')}
-      </select></div>
-      <button class="btn btn-pri btn-sm" onclick="fixRoundId()">重新關聯</button>` : ''}
-    </div>
-
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:14px">
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">💰 重算訂單金額</div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:10px">依商品設定重新計算本團所有訂單的合計金額</div>
-      <button class="btn btn-out btn-sm" onclick="fixRecalcTotals()">執行重算</button>
-    </div>
-  </div>`;
+  );
 }
 
-async function fixPhoneNorm() {
-  const toFix = S.orders.filter(o => o.phone !== normPhone(o.phone));
-  if (!toFix.length) { toast('所有電話格式均正常', 'ok'); return; }
-  showConfirm(`修復 ${toFix.length} 筆電話格式（改為純數字），修復後查詢將正常運作。`, async () => {
-    try {
-      const batch = db.batch();
-      toFix.forEach(o => batch.update(db.collection('orders').doc(o.id), { phone: normPhone(o.phone) }));
-      await batch.commit();
-      toFix.forEach(o => { const x=S.orders.find(x=>x.id===o.id); if(x) x.phone=normPhone(o.phone); });
-      render();
-      toast(`已修復 ${toFix.length} 筆`, 'ok');
-    } catch (e) { toast('修復失敗：' + e.message, 'err'); }
-  }, '確定修復', false);
-}
+// ── Admin Dashboard ──────────────────────────────────────────
+function AdminPage({ config, orders, onRefresh, onLogout, onSetup, onPickup, onNewRound }) {
+  const [roundFilter, setRoundFilter] = useState('current');
+  const [editOrder, setEditOrder] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
-async function fixRoundId() {
-  const from = document.getElementById('fix-round-sel')?.value;
-  if (!from) return;
-  const list = S.allOrders.filter(o => o.roundId === from);
-  showConfirm(`將 ${list.length} 筆訂單的 roundId 改為本團？`, async () => {
-    try {
-      const batch = db.batch();
-      list.forEach(o => batch.update(db.collection('orders').doc(o.id), {
-        roundId: S.settings.roundId, roundName: S.settings.roundName
-      }));
-      await batch.commit();
-      await loadAdminOrders();
-      render();
-      toast(`已修復 ${list.length} 筆`, 'ok');
-    } catch (e) { toast('修復失敗：' + e.message, 'err'); }
-  }, '確定修復', false);
-}
+  const roundOrders = roundFilter === 'current'
+    ? orders.filter(o => o.roundId === config.roundId)
+    : orders;
 
-async function fixRecalcTotals() {
-  const pm = {};
-  (S.settings.products||[]).forEach(p => { pm[p.name]=p; });
-  const toFix = [];
-  S.orders.forEach(o => {
-    let total = 0;
-    (o.items||[]).forEach(it => {
-      const p = pm[it.name];
-      total += p ? p.price * it.qty : (it.subtotal || 0);
-    });
-    if (total !== o.total) toFix.push({ id:o.id, total });
-  });
-  if (!toFix.length) { toast('所有金額均正確', 'ok'); return; }
-  showConfirm(`發現 ${toFix.length} 筆金額不一致，確定重算？`, async () => {
-    try {
-      const batch = db.batch();
-      toFix.forEach(({id,total}) => batch.update(db.collection('orders').doc(id), { total }));
-      await batch.commit();
-      toFix.forEach(({id,total}) => { const o=S.orders.find(x=>x.id===id); if(o) o.total=total; });
-      render();
-      toast(`已重算 ${toFix.length} 筆`, 'ok');
-    } catch (e) { toast('重算失敗：' + e.message, 'err'); }
-  }, '確定重算', false);
-}
+  const totalAmount = roundOrders.reduce((s, o) => s + (o.total||0), 0);
+  const uniquePersons = new Set(roundOrders.map(o => o.phone)).size;
 
-// ── Admin: Close ──────────────────────────────────────────────
-function _renderAdminClose() {
-  const isOpen = S.settings?.isOpen;
-  return `
-  <div style="margin-top:14px">
-    <div class="warn-box">⚠️ 結團後消費者無法繼續下單，但所有訂單資料不受影響，可隨時重新開團。</div>
-
-    <div class="danger-zone">
-      <div class="danger-hd">${isOpen ? '🔒 結團' : '🔓 重新開團'}</div>
-      <div class="danger-body">
-        <div style="font-size:14px;margin-bottom:16px">
-          目前狀態：<strong style="color:${isOpen?'var(--ok)':'var(--err)'}">${isOpen?'開放中 ✓':'已結團 ✗'}</strong>
-        </div>
-        ${isOpen
-          ? `<button class="btn btn-err btn-blk" onclick="doCloseRound()">🔒 立即結團</button>`
-          : `<button class="btn btn-ok  btn-blk" onclick="doReopenRound()">🔓 重新開團</button>`}
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700;font-size:14px;color:var(--pri);margin-bottom:8px">🆕 開始全新一團</div>
-      <div style="font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.7">
-        建立新的 roundId，本團歷史訂單完整保留。<br>
-        可在「設定」頁更新商品、日期等資訊。</div>
-      <button class="btn btn-pri btn-blk" onclick="doNewRound()">開始新一團</button>
-    </div>
-  </div>`;
-}
-
-async function doCloseRound() {
-  showConfirm('確定結團？結團後顧客將無法下單。', async () => {
-    try {
-      await db.collection('config').doc('settings').update({ isOpen:false, closedAt:new Date().toISOString() });
-      S.settings.isOpen = false;
-      render();
-      toast('已結團', 'ok');
-    } catch (e) { toast('失敗：' + e.message, 'err'); }
-  });
-}
-
-async function doReopenRound() {
-  try {
-    await db.collection('config').doc('settings').update({ isOpen:true, closedAt:null });
-    S.settings.isOpen = true;
-    render();
-    toast('已重新開團', 'ok');
-  } catch (e) { toast('失敗：' + e.message, 'err'); }
-}
-
-async function doNewRound() {
-  showConfirm('確定開始新一團？本團歷史訂單將保留，新團使用全新 roundId。', async () => {
-    const newId = 'r_' + Date.now();
-    try {
-      await db.collection('config').doc('settings').update({
-        roundId: newId, isOpen: true, orderCount: 0, closedAt: null
+  const productStats = {};
+  const products = config.products || [];
+  products.forEach(p => {
+    if (p.variants && p.variants.length > 0) {
+      p.variants.forEach(v => {
+        const key = `${p.id}_${v.id}`;
+        productStats[key] = { name: `${p.name} · ${v.name}`, qty: 0, stock: v.stock || p.stock || 0 };
       });
-      Object.assign(S.settings, { roundId:newId, isOpen:true, orderCount:0, closedAt:null });
-      S.orders = [];
-      render();
-      toast('新一團已開始', 'ok');
-    } catch (e) { toast('失敗：' + e.message, 'err'); }
-  }, '確定開始', false);
-}
-
-// ════════════════════════════════════════════════════════════
-//  SETTINGS PAGE
-// ════════════════════════════════════════════════════════════
-function renderSettings() {
-  const s = S.settings || {};
-
-  const prodRows = (s.products||[]).map((p,i) => `
-    <div style="border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--bg)">
-      <div style="display:grid;grid-template-columns:1fr 80px 70px 36px;gap:8px;align-items:end;margin-bottom:8px">
-        <div class="fld" style="margin:0"><label class="lbl">商品名稱</label>
-          <input class="inp" type="text" value="${escHtml(p.name)}" onchange="updateProd(${i},'name',this.value)"></div>
-        <div class="fld" style="margin:0"><label class="lbl">定價</label>
-          <input class="inp" type="number" value="${p.price}" onchange="updateProd(${i},'price',+this.value)"></div>
-        <div class="fld" style="margin:0"><label class="lbl">單位</label>
-          <input class="inp" type="text" value="${escHtml(p.unit||'罐')}" onchange="updateProd(${i},'unit',this.value)"></div>
-        <button class="btn btn-err btn-sm" style="padding:8px 6px" onclick="removeProd(${i})">✕</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:end">
-        <div class="fld" style="margin:0"><label class="lbl">說明文字</label>
-          <input class="inp" type="text" value="${escHtml(p.desc||'')}" placeholder="選填" onchange="updateProd(${i},'desc',this.value)"></div>
-        <div class="fld" style="margin:0"><label class="lbl">最大數量</label>
-          <input class="inp" type="number" min="0" value="${p.maxQty||99}" onchange="updateProd(${i},'maxQty',+this.value)"></div>
-      </div>
-      <label style="font-size:12px;color:var(--txt2);display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:8px">
-        <input type="checkbox" ${p.active?'checked':''} onchange="updateProd(${i},'active',this.checked)"> 上架中
-      </label>
-    </div>`).join('');
-
-  const dateRows = (s.pickupDates||[]).map((d,i) => `
-    <div style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
-      <input class="inp" type="date" value="${d}" style="flex:1" onchange="updatePickupDate(${i},this.value)">
-      <button class="btn btn-err btn-sm" onclick="removePickupDate(${i})">✕</button>
-    </div>`).join('');
-
-  return `
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 14px 6px">
-    <div style="font-family:'Noto Serif TC';font-size:16px;font-weight:700;color:var(--pri)">⚙️ 團購設定</div>
-    <button class="btn btn-out btn-sm" onclick="showView('admin')">← 返回</button>
-  </div>
-
-  <div class="card">
-    <div style="font-weight:700;font-size:14px;color:var(--pri);margin-bottom:12px">基本資訊</div>
-    <div class="fld"><label class="lbl">團購名稱</label>
-      <input class="inp" id="st-name" type="text" value="${escHtml(s.roundName||'')}"></div>
-    <div class="fld"><label class="lbl">說明文字</label>
-      <textarea class="inp" id="st-desc">${escHtml(s.description||'')}</textarea></div>
-    <div class="fld"><label class="lbl">付款資訊（顯示在下單頁與確認頁）</label>
-      <textarea class="inp" id="st-pay" style="min-height:100px">${escHtml(s.paymentInfo||'')}</textarea></div>
-    <hr style="border:none;border-top:1px solid var(--bdr);margin:4px 0 14px">
-    <div class="fld">
-      <label class="lbl">🔐 入場碼（客人下單前需輸入，空白表示不設限）</label>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input class="inp" id="st-entry" type="text" inputmode="numeric"
-          placeholder="例如：1234（每次開團可更換）"
-          value="${escHtml(s.entryCode||'')}">
-        <button class="btn btn-out btn-sm" style="white-space:nowrap"
-          onclick="document.getElementById('st-entry').value=''">清除</button>
-      </div>
-      <div style="font-size:11px;color:var(--txt2);margin-top:4px">
-        設定後，客人需輸入正確入場碼才能看到下單頁。開新一團時記得更換。
-      </div>
-    </div>
-    <div class="fld">
-      <label class="lbl">管理員密碼</label>
-      <input class="inp" id="st-pw" type="password" value="${escHtml(s.adminPassword||'')}">
-    </div>
-    <button class="btn btn-pri btn-sm" onclick="saveBasic()">儲存</button>
-  </div>
-
-  <div class="card">
-    <div style="font-weight:700;font-size:14px;color:var(--pri);margin-bottom:12px">📦 商品管理</div>
-    ${prodRows}
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-out btn-sm" onclick="addProd()">＋ 新增商品</button>
-      <button class="btn btn-acc btn-sm" onclick="saveProducts()">儲存商品</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <div style="font-weight:700;font-size:14px;color:var(--pri);margin-bottom:12px">📅 取貨日期</div>
-    ${dateRows}
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-out btn-sm" onclick="addPickupDate()">＋ 新增日期</button>
-      <button class="btn btn-acc btn-sm" onclick="savePickupDates()">儲存日期</button>
-    </div>
-  </div>
-  <br>`;
-}
-
-// Settings helpers
-function updateProd(i,k,v)      { if(S.settings.products[i]) S.settings.products[i][k]=v; }
-function removeProd(i)           { S.settings.products.splice(i,1); _reRenderSettings(); }
-function addProd()               { (S.settings.products=S.settings.products||[]).push({id:'p_'+Date.now(),name:'新商品',price:0,unit:'罐',desc:'',maxQty:10,active:true}); _reRenderSettings(); }
-function updatePickupDate(i,v)   { S.settings.pickupDates[i]=v; }
-function removePickupDate(i)     { S.settings.pickupDates.splice(i,1); _reRenderSettings(); }
-function addPickupDate()         { (S.settings.pickupDates=S.settings.pickupDates||[]).push(today()); _reRenderSettings(); }
-function _reRenderSettings()     { document.getElementById('pg-el').innerHTML = renderSettings(); }
-
-async function saveBasic() {
-  const name  = document.getElementById('st-name')?.value.trim()||'';
-  const desc  = document.getElementById('st-desc')?.value||'';
-  const pay   = document.getElementById('st-pay')?.value||'';
-  const entry = document.getElementById('st-entry')?.value.trim()||'';
-  const pw    = document.getElementById('st-pw')?.value.trim()||'';
-  if (!name) { toast('請填寫團購名稱', 'err'); return; }
-  try {
-    await db.collection('config').doc('settings').update({
-      roundName: name, description: desc, paymentInfo: pay,
-      entryCode: entry,
-      ...(pw ? { adminPassword: pw } : {})
+    } else {
+      productStats[p.id] = { name: p.name, qty: 0, stock: p.stock || 0 };
+    }
+  });
+  roundOrders.forEach(o => {
+    (o.items||[]).forEach(it => {
+      const key = it.variantId ? `${it.productId}_${it.variantId}` : it.productId;
+      if (productStats[key]) productStats[key].qty += it.qty;
     });
-    S.settings.roundName=name; S.settings.description=desc;
-    S.settings.paymentInfo=pay; S.settings.entryCode=entry;
-    if (pw) S.settings.adminPassword=pw;
-    toast('設定已儲存', 'ok');
-  } catch (e) { toast('儲存失敗：' + e.message, 'err'); }
+  });
+
+  const saveEdit = async (updated) => {
+    await db.collection('orders').doc(updated.id).update({
+      nickname: updated.nickname, phone: updated.phone, name: updated.name,
+      note: updated.note, items: updated.items, total: updated.total
+    });
+    onRefresh(); setEditOrder(null);
+  };
+
+  const deleteOrder = async (id) => {
+    if (!confirm('確定刪除此訂單？')) return;
+    setDeleting(id);
+    await db.collection('orders').doc(id).delete();
+    onRefresh(); setDeleting(null);
+  };
+
+  const exportPickup = () => {
+    const byDelivery = {};
+    roundOrders.forEach(o => {
+      const key = o.deliveryDate || '未分組';
+      if (!byDelivery[key]) byDelivery[key] = [];
+      byDelivery[key].push(o);
+    });
+    const allProducts = Object.values(productStats).map(s => s.name);
+    let csv = '';
+    Object.entries(byDelivery).forEach(([date, ros]) => {
+      csv += `取貨時間：${date}\n`;
+      csv += `姓名,電話,${allProducts.join(',')},合計,取貨\n`;
+      ros.forEach(o => {
+        const cols = Object.values(productStats).map(s => {
+          const it = (o.items||[]).find(it => {
+            const k = it.variantId ? `${it.productId}_${it.variantId}` : it.productId;
+            return k === Object.keys(productStats).find(pk => productStats[pk].name === s.name);
+          });
+          return it ? it.qty : 0;
+        });
+        csv += `${o.nickname},${o.phone},${cols.join(',')},${o.total},${o.pickedUp?'✓':''}\n`;
+      });
+      csv += '\n';
+    });
+    exportCSV(csv, `取貨核對表_${config.roundName||'團購'}.csv`);
+  };
+
+  const exportOrders = () => {
+    const byDelivery = {};
+    roundOrders.forEach(o => {
+      const key = o.deliveryDate || '未分組';
+      if (!byDelivery[key]) byDelivery[key] = [];
+      byDelivery[key].push(o);
+    });
+    let csv = '';
+    Object.entries(byDelivery).forEach(([date, ros]) => {
+      csv += `取貨時間：${date}\n`;
+      const totals = {};
+      ros.forEach(o => (o.items||[]).forEach(it => {
+        const k = it.variantId ? `${it.productName} · ${it.variantName}` : it.productName;
+        totals[k] = (totals[k]||0) + it.qty;
+      }));
+      csv += `品項,數量,金額\n`;
+      Object.entries(totals).forEach(([name, qty]) => {
+        const p = products.find(p => p.name === name.split(' · ')[0]);
+        const price = p ? p.price : 0;
+        csv += `${name},${qty},${qty*price}\n`;
+      });
+      csv += `小計訂單數,${ros.length}\n\n`;
+    });
+    exportCSV(csv, `叫貨統計_${config.roundName||'團購'}.csv`);
+  };
+
+  return (
+    <div className="app">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+        <h2 style={{fontSize:18,fontFamily:'Noto Serif TC,serif'}}>後台管理</h2>
+        <button className="btn btn-ghost btn-sm" onClick={onLogout}>登出</button>
+      </div>
+
+      <div className="admin-nav">
+        {[
+          { label:'📦 訂單', key:'orders' },
+          { label:'📬 取貨', key:'pickup', action: onPickup },
+          { label:'⚙️ 設定', key:'setup', action: onSetup },
+          { label:'🔄 新一團', key:'newround', action: onNewRound },
+        ].map(n => (
+          <button key={n.key} className="nav-btn" onClick={n.action||undefined}>{n.label}</button>
+        ))}
+      </div>
+
+      <div className="stat-grid">
+        <div className="stat-card"><div className="stat-num">{roundOrders.length}</div><div className="stat-label">訂單數</div></div>
+        <div className="stat-card"><div className="stat-num">{uniquePersons}</div><div className="stat-label">訂購人數</div></div>
+        <div className="stat-card"><div className="stat-num" style={{fontSize:16}}>{fmtMoney(totalAmount)}</div><div className="stat-label">總金額</div></div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">📊 品項統計</div>
+        {Object.values(productStats).length === 0 ? <div style={{color:'var(--text-muted)',fontSize:13}}>無品項資料</div>
+          : Object.values(productStats).map((s, i) => (
+            <div key={i} style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+                <span>{s.name}</span>
+                <strong>{s.qty}{s.stock ? ` / ${s.stock}` : ''} 件</strong>
+              </div>
+              {s.stock > 0 && (
+                <div className="progress-bg">
+                  <div className={`progress-fill ${s.qty>=s.stock?'full':s.qty/s.stock>0.8?'low':''}`} style={{width:`${Math.min(100,(s.qty/s.stock)*100)}%`}}/>
+                </div>
+              )}
+            </div>
+          ))
+        }
+      </div>
+
+      <div className="tabs">
+        <button className={`tab ${roundFilter==='current'?'active':''}`} onClick={()=>setRoundFilter('current')}>本團</button>
+        <button className={`tab ${roundFilter==='all'?'active':''}`} onClick={()=>setRoundFilter('all')}>所有團次</button>
+      </div>
+
+      <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
+        <button className="btn btn-secondary btn-sm" onClick={exportPickup}>📥 取貨核對表</button>
+        <button className="btn btn-secondary btn-sm" onClick={exportOrders}>📥 叫貨統計</button>
+      </div>
+
+      {roundOrders.length === 0 ? (
+        <div className="card"><div className="empty">目前沒有訂單</div></div>
+      ) : roundOrders.sort((a,b)=>b.ts-a.ts).map(o => (
+        <div key={o.id} className="order-row">
+          <div className="order-header">
+            <span className="order-name">{o.nickname}（{o.phone}）</span>
+            <span style={{display:'flex',gap:6,alignItems:'center'}}>
+              {roundFilter==='all' && <span className="badge badge-gray">{o.roundName}</span>}
+              {o.pickedUp && <span className="badge badge-green">已取貨</span>}
+              <span className="order-total">{fmtMoney(o.total)}</span>
+            </span>
+          </div>
+          <div className="order-items">
+            {(o.items||[]).map((it,i)=><div key={i}>{it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty} = {fmtMoney(it.price*it.qty)}</div>)}
+          </div>
+          {o.note && <div className="order-note">備註：{o.note}</div>}
+          <div style={{fontSize:12,color:'var(--text-muted)',marginTop:4}}>{fmtDate(o.ts)}</div>
+          <div className="order-actions">
+            <button className="btn btn-secondary btn-sm" onClick={()=>setEditOrder(o)}>✏️ 編輯</button>
+            <button className="btn btn-danger btn-sm" disabled={deleting===o.id} onClick={()=>deleteOrder(o.id)}>🗑 刪除</button>
+          </div>
+        </div>
+      ))}
+
+      {editOrder && <EditOrderModal order={editOrder} config={config} onSave={saveEdit} onClose={()=>setEditOrder(null)}/>}
+    </div>
+  );
 }
 
-async function saveProducts() {
-  try {
-    await db.collection('config').doc('settings').update({ products: S.settings.products });
-    toast('商品已儲存', 'ok');
-  } catch (e) { toast('儲存失敗：' + e.message, 'err'); }
+// ── New Round Modal ───────────────────────────────────────────
+function NewRoundModal({ config, onConfirm, onClose }) {
+  const [roundName, setRoundName] = useState(`第${parseInt((config.roundName||'第0團').replace(/[^0-9]/g,'') || '0') + 1}團`);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <div className="modal-title">🔄 開啟新一團</div>
+        <div className="alert alert-amber" style={{marginBottom:14}}>
+          舊訂單將完整保留，新一團將清空截止時間與取貨說明，請重新設定。
+        </div>
+        <div className="form-group">
+          <label>新團次名稱</label>
+          <input value={roundName} onChange={e=>setRoundName(e.target.value)} placeholder="第2團"/>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button className="btn btn-secondary" style={{flex:1}} onClick={onClose}>取消</button>
+          <button className="btn btn-primary" style={{flex:1}} onClick={()=>onConfirm(roundName)}>確認開團</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-async function savePickupDates() {
-  try {
-    await db.collection('config').doc('settings').update({ pickupDates: S.settings.pickupDates||[] });
-    toast('取貨日期已儲存', 'ok');
-  } catch (e) { toast('儲存失敗：' + e.message, 'err'); }
+// ── Main App ─────────────────────────────────────────────────
+function App() {
+  const [page, setPage] = useState('loading');
+  const [config, setConfig] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [adminLoggedIn, setAdminLoggedIn] = useState(false);
+  const [showNewRound, setShowNewRound] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const configSnap = await db.collection('config').doc('main').get();
+      let cfg;
+      if (!configSnap.exists) {
+        cfg = {
+          title: '半吊子廚房團購',
+          description: '',
+          deliveryDate: '',
+          deadline: '',
+          pickupNote: '',
+          adminPass: '0000',
+          accessCode: '',
+          roundId: genId(),
+          roundName: '第1團',
+          products: []
+        };
+        await db.collection('config').doc('main').set(cfg);
+      } else {
+        cfg = configSnap.data();
+      }
+      setConfig(cfg);
+
+      const ordersSnap = await db.collection('orders').orderBy('ts','desc').get();
+      setOrders(ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      if (!cfg.accessCode) setAccessGranted(true);
+      setPage('main');
+    } catch(e) {
+      alert('無法連接 Firebase，請確認設定：' + e.message);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleNewRound = async (roundName) => {
+    const newCfg = { ...config, roundId: genId(), roundName, deadline: '', pickupNote: '', deliveryDate: '' };
+    await db.collection('config').doc('main').set(newCfg);
+    setConfig(newCfg);
+    setShowNewRound(false);
+    setPage('setup');
+  };
+
+  if (page === 'loading') return <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}><Loading text="連接中…"/></div>;
+  if (!accessGranted) return <AccessPage accessCode={config.accessCode} onEnter={()=>setAccessGranted(true)}/>;
+  if (page === 'main' && !adminLoggedIn) return (
+    <>
+      <OrderPage config={config} orders={orders}
+        onSubmit={loadData}
+        onGoQuery={()=>setPage('query')}
+        onGoAdmin={()=>setPage('admin-login')}/>
+      {showNewRound && <NewRoundModal config={config} onConfirm={handleNewRound} onClose={()=>setShowNewRound(false)}/>}
+    </>
+  );
+  if (page === 'query') return <QueryPage orders={orders} onBack={()=>setPage('main')}/>;
+  if (page === 'admin-login') return <AdminLogin adminPass={config.adminPass} onLogin={()=>{setAdminLoggedIn(true);setPage('admin');}} onBack={()=>setPage('main')}/>;
+  if (page === 'admin') return (
+    <>
+      <AdminPage config={config} orders={orders} onRefresh={loadData}
+        onLogout={()=>{setAdminLoggedIn(false);setPage('main');}}
+        onSetup={()=>setPage('setup')}
+        onPickup={()=>setPage('pickup')}
+        onNewRound={()=>setShowNewRound(true)}/>
+      {showNewRound && <NewRoundModal config={config} onConfirm={handleNewRound} onClose={()=>setShowNewRound(false)}/>}
+    </>
+  );
+  if (page === 'pickup') return <PickupPage config={config} orders={orders} onRefresh={loadData} onBack={()=>setPage('admin')}/>;
+  if (page === 'setup') return <SetupPage config={config}
+    onSave={cfg=>{setConfig(cfg);setPage('admin');}}
+    onBack={()=>setPage('admin')}/>;
+
+  return null;
 }
 
-// ════════════════════════════════════════════════════════════
-//  INIT
-// ════════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  render(); // Show loading state immediately
-  initFirebase();
-});
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>

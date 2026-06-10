@@ -26,7 +26,7 @@ h1,h2,h3,h4{font-family:'Noto Serif TC',serif}
 .header{text-align:center;padding:28px 0 20px;border-bottom:1px solid var(--border);margin-bottom:20px}
 .header .brand{font-size:13px;letter-spacing:3px;color:var(--accent);font-weight:600;margin-bottom:6px}
 .header h1{font-size:22px;font-weight:700;color:var(--text)}
-.header .sub{font-size:13px;color:var(--text-muted);margin-top:4px}
+.header .sub{font-size:14px;color:var(--text);margin-top:4px;line-height:1.75}
 /* CARD */
 .card{background:var(--surface);border-radius:14px;padding:20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 /* BUTTONS */
@@ -461,7 +461,15 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
       <div className="header">
         <div className="brand">THE HALF KITCHEN</div>
         <h1>{config.title || '半吊子廚房團購'}</h1>
-        {config.description && <div className="sub" style={{whiteSpace:'pre-line'}}>{config.description}</div>}
+        {config.description && (
+          <div className="sub" style={{textAlign:'left',marginTop:12}}>
+            {config.description.split('\n').map((line, i) =>
+              line.trim() === ''
+                ? <div key={i} style={{height:'0.8em'}}/>
+                : <div key={i} style={{marginBottom:2,lineHeight:1.75,fontSize:14}}>{line}</div>
+            )}
+          </div>
+        )}
         {config.deliveryDate && <div style={{marginTop:6}}><span className="badge badge-green">📅 {config.deliveryDate}</span></div>}
         {isExpired && <div style={{marginTop:8}}><span className="badge badge-red">⛔ 已截止</span></div>}
       </div>

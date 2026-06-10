@@ -239,6 +239,7 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
   const [note,setNote]=useState(''); const [qty,setQty]=useState({});
   const [view,setView]=useState('order'); const [busy,setBusy]=useState(false);
   const [doneOrder,setDoneOrder]=useState(null);
+  const [dupOrder,setDupOrder]=useState(null); // 本團重複電話的舊訂單
   const products=config.products||[];
   const expired=config.deadline&&new Date()>new Date(config.deadline);
   const onQty=(key,v)=>setQty(p=>({...p,[key]:Math.max(0,v)}));
@@ -256,13 +257,39 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
     return items;
   };
   const items=buildItems(); const total=items.reduce((s,it)=>s+it.price*it.qty,0);
+
+  // 偵測本團是否已有此電話
+  const checkDup=(phoneVal)=>{
+    const found=(orders||[]).find(o=>o.phone===phoneVal.trim()&&o.roundId===config.roundId);
+    setDupOrder(found||null);
+  };
+
   const goConfirm=()=>{
     if(!nick.trim()){alert('請輸入群組暱稱');return;}
     if(!phone.trim()||phone.trim().length<6){alert('請輸入正確電話');return;}
     if(!items.length){alert('請至少選擇一項商品');return;}
     setView('confirm');
   };
-  const submit=async()=>{
+
+  // 更新舊單（覆蓋品項）
+  const updateExisting=async()=>{
+    if(!dupOrder)return;
+    setBusy(true);
+    try{
+      const updatedItems=items.map(({_key,...r})=>r);
+      const updatedTotal=cleanN(total);
+      await db.collection('orders').doc(dupOrder.id).update({
+        nickname:nick.trim(),name:`${nick.trim()}（${phone.trim()}）`,
+        items:updatedItems,total:updatedTotal,note:note.trim()||'',ts:Date.now()
+      });
+      const updated={...dupOrder,nickname:nick.trim(),items:updatedItems,total:updatedTotal,note:note.trim()||''};
+      setDoneOrder(updated); setView('done'); onRefresh();
+    }catch(e){alert('更新失敗：'+e.message);}
+    setBusy(false);
+  };
+
+  // 新增一筆（忽略重複）
+  const submitNew=async()=>{
     setBusy(true);
     try{
       const order={nickname:nick.trim(),phone:phone.trim(),name:`${nick.trim()}（${phone.trim()}）`,
@@ -273,11 +300,37 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
     }catch(e){alert('送出失敗：'+e.message);}
     setBusy(false);
   };
+
+  const submit=submitNew; // 確認頁送出（無重複情況）
+
   if(view==='confirm') return <div className="wrap">
     <div className="hdr"><div className="brand">THE HALF KITCHEN</div><h1>{config.title||'半吊子廚房團購'}</h1></div>
     <div className="card">
       <div className="stitle">📋 確認訂單</div>
       {config.pickupNote&&<div className="alert alert-am"><strong>取貨說明：</strong><span style={{whiteSpace:'pre-line'}}>{config.pickupNote}</span></div>}
+
+      {/* 重複電話警告 */}
+      {dupOrder&&<div className="alert alert-am" style={{marginBottom:14}}>
+        <div style={{fontWeight:700,marginBottom:8}}>⚠️ 此電話本團已有一筆訂單</div>
+        <div style={{fontSize:12,marginBottom:6}}>舊單內容：</div>
+        <div style={{fontSize:13,background:'rgba(255,255,255,.6)',borderRadius:8,padding:'8px 10px',marginBottom:10}}>
+          <strong>{dupOrder.nickname}</strong> · {fmtMoney(dupOrder.total)}<br/>
+          {(dupOrder.items||[]).map((it,i)=><span key={i} style={{display:'block',color:'var(--text)'}}>
+            {it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty}
+          </span>)}
+          {dupOrder.note&&<span style={{color:'var(--amber)',fontSize:12}}>備註：{dupOrder.note}</span>}
+        </div>
+        <div style={{fontSize:13,marginBottom:8}}>請選擇：</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button className="btn btn-p btn-sm" disabled={busy} style={{flex:1}} onClick={updateExisting}>
+            {busy?'處理中…':'🔄 更新舊單（以新品項取代）'}
+          </button>
+          <button className="btn btn-s btn-sm" disabled={busy} style={{flex:1}} onClick={submitNew}>
+            {busy?'處理中…':'➕ 新增一筆'}
+          </button>
+        </div>
+      </div>}
+
       <table className="ctbl"><tbody>
         {items.map((it,i)=><tr key={i}>
           <td>{it.productName}{it.variantName?` · ${it.variantName}`:''}</td>
@@ -290,7 +343,7 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
     </div>
     <div style={{display:'flex',gap:10}}>
       <button className="btn btn-s" style={{flex:1}} onClick={()=>setView('order')}>← 返回修改</button>
-      <button className="btn btn-p" style={{flex:1}} disabled={busy} onClick={submit}>{busy?'送出中…':'確認送出 ✓'}</button>
+      {!dupOrder&&<button className="btn btn-p" style={{flex:1}} disabled={busy} onClick={submit}>{busy?'送出中…':'確認送出 ✓'}</button>}
     </div>
   </div>;
   if(view==='done') return <div className="wrap">
@@ -318,7 +371,7 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
       <div className="card">
         <div className="stitle">👤 訂購資訊</div>
         <div className="fg"><label>群組暱稱 *</label><input placeholder="請輸入你在群組的暱稱" value={nick} onChange={e=>setNick(e.target.value)}/></div>
-        <div className="fg" style={{marginBottom:0}}><label>聯絡電話 *</label><input type="tel" placeholder="0912345678" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div className="fg" style={{marginBottom:0}}><label>聯絡電話 *</label><input type="tel" placeholder="0912345678" value={phone} onChange={e=>{setPhone(e.target.value);setDupOrder(null);}} onBlur={e=>e.target.value.trim().length>=6&&checkDup(e.target.value)}/>{dupOrder&&<div style={{marginTop:6,fontSize:12,padding:"6px 10px",background:"#fdf3dc",borderRadius:7,color:"var(--amber)"}}>⚠️ 此電話本團已有訂單，確認頁將提供選項</div>}</div>
       </div>
       <div className="stitle" style={{paddingLeft:4}}>🛒 選擇品項</div>
       {products.length===0?<div className="card"><div className="empty">目前尚無商品</div></div>
@@ -751,7 +804,7 @@ function AdminPage({config, orders, onRefresh, onLogout, onNav}) {
     </div>
     <div className="sgrid">
       <div className="scard"><div className="snum">{ro.length}</div><div className="slbl">訂單數</div></div>
-      <div className="scard"><div className="snum">{persons}</div><div className="slbl">訂購人數</div></div>
+      <div className="scard"><div className="snum">{persons}</div><div className="slbl">不重複電話</div></div>
       <div className="scard"><div className="snum" style={{fontSize:16}}>{fmtMoney(total)}</div><div className="slbl">總金額</div></div>
     </div>
     <div className="card">

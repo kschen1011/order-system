@@ -538,16 +538,24 @@ function OrderPage({ config, orders, onSubmit, onGoQuery, onGoAdmin }) {
 function QueryPage({ orders, onBack }) {
   const [phone, setPhone] = useState('');
   const [result, setResult] = useState(null);
-  const search = () => {
+  const [searching, setSearching] = useState(false);
+
+  const search = async () => {
     if (!phone.trim()) return;
-    const found = orders.filter(o => o.phone === phone.trim());
-    const byRound = {};
-    found.forEach(o => {
-      const k = o.roundId || 'unknown';
-      if (!byRound[k]) byRound[k] = { name: o.roundName || k, orders: [] };
-      byRound[k].orders.push(o);
-    });
-    setResult({ total: found.length, byRound });
+    setSearching(true);
+    try {
+      const snap = await db.collection('orders').get();
+      const found = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(o => o.phone === phone.trim());
+      const byRound = {};
+      found.sort((a,b) => (b.ts||0)-(a.ts||0)).forEach(o => {
+        const k = o.roundId || 'unknown';
+        if (!byRound[k]) byRound[k] = { name: o.roundName || k, orders: [] };
+        byRound[k].orders.push(o);
+      });
+      setResult({ total: found.length, byRound });
+    } catch(e) { alert('查詢失敗：' + e.message); }
+    setSearching(false);
   };
   return (
     <div className="app">

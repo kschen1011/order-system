@@ -2086,20 +2086,34 @@ function AdminPage({
     onRefresh();
   };
   const exportPickup = () => {
-    const allP = Object.entries(pStats);
-    let csv = `姓名,電話,${allP.map(([, s]) => s.name).join(',')},合計,取貨\n`;
+    // 從訂單本身收集所有出現過的品項名稱（不依賴 config.products id）
+    const productNames = [];
+    ro.forEach(o => (o.items || []).forEach(it => {
+      const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+      if (!productNames.includes(name)) productNames.push(name);
+    }));
+    let csv = `姓名,電話,${productNames.join(',')},合計,取貨\n`;
     ro.forEach(o => {
-      const cols = allP.map(([k]) => {
-        const it = (o.items || []).find(it => (it.variantId ? `${it.productId}_${it.variantId}` : it.productId) === k);
-        return it ? it.qty : 0;
+      const itemMap = {};
+      (o.items || []).forEach(it => {
+        const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+        itemMap[name] = (itemMap[name] || 0) + (it.qty || 0);
       });
+      const cols = productNames.map(name => itemMap[name] || 0);
       csv += `${o.nickname},${o.phone},${cols.join(',')},${o.total},${o.pickedUp ? '✓' : ''}\n`;
     });
     exportCSV(csv, `取貨核對表_${config.roundName || '團購'}.csv`);
   };
   const exportStat = () => {
+    // 從訂單本身統計數量（不依賴 config.products id）
+    const statMap = {};
+    ro.forEach(o => (o.items || []).forEach(it => {
+      const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+      if (!statMap[name]) statMap[name] = 0;
+      statMap[name] += it.qty || 0;
+    }));
     let csv = '品項,數量\n';
-    Object.values(pStats).forEach(s => csv += `${s.name},${s.qty}\n`);
+    Object.entries(statMap).forEach(([name, qty]) => csv += `${name},${qty}\n`);
     csv += `\n總金額,${total}\n`;
     exportCSV(csv, `叫貨統計_${config.roundName || '團購'}.csv`);
   };

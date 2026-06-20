@@ -121,6 +121,10 @@ h1,h2,h3{font-family:'Noto Serif TC',serif}
 <body>
 <div id="root"></div>
 <script type="text/babel">
+// CDN 載入檢查
+if (typeof React === 'undefined') { document.getElementById('root').innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif"><h2>⚠️ 載入失敗</h2><p style="color:#888;margin:12px 0">請確認網路連線後重新整理</p><button onclick="location.reload()" style="padding:10px 20px;background:#C4622D;color:#fff;border:none;border-radius:8px;cursor:pointer">🔄 重新整理</button></div>'; throw new Error('React CDN failed'); }
+if (typeof firebase === 'undefined') { document.getElementById('root').innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif"><h2>⚠️ 載入失敗</h2><p style="color:#888;margin:12px 0">請確認網路連線後重新整理</p><button onclick="location.reload()" style="padding:10px 20px;background:#C4622D;color:#fff;border:none;border-radius:8px;cursor:pointer">🔄 重新整理</button></div>'; throw new Error('Firebase CDN failed'); }
+
 const { useState, useEffect, useCallback } = React;
 
 // ── Firebase ──────────────────────────────────────────────────
@@ -150,7 +154,22 @@ const exportCSV = (content, fn) => {
 // ── DB ────────────────────────────────────────────────────────
 const getConfig = async () => {
   const s = await db.collection('config').doc('main').get();
-  return s.exists ? s.data() : null;
+  if (!s.exists) return null;
+  const data = s.data();
+  // 防護：確保 products 是陣列且每項都有 id
+  if (!Array.isArray(data.products)) data.products = [];
+  data.products = data.products.map(p => ({
+    ...p,
+    id: p.id || genId(),
+    name: p.name || '',
+    price: Number(p.price) || 0,
+    stock: Number(p.stock) || 0,
+    perLimit: Number(p.perLimit) || 0,
+    variants: Array.isArray(p.variants)
+      ? p.variants.map(v => ({ ...v, id: v.id || genId(), name: v.name || '', price: Number(v.price) || 0, stock: Number(v.stock) || 0 }))
+      : []
+  }));
+  return data;
 };
 const getOrders = async () => {
   const s = await db.collection('orders').get();
@@ -163,6 +182,27 @@ const getHistory = async () => {
 
 // ── Loading ───────────────────────────────────────────────────
 const Loading = ({text='載入中…'}) => <div className="loading"><div className="spin"/>{text}</div>;
+
+// ── Error Boundary（防止單點錯誤導致整頁空白） ──────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div className="wrap" style={{paddingTop:40}}>
+        <div className="card" style={{textAlign:'center',padding:'32px 20px'}}>
+          <div style={{fontSize:36,marginBottom:14}}>⚠️</div>
+          <h2 style={{fontSize:17,marginBottom:10,color:'var(--red)'}}>頁面發生錯誤</h2>
+          <p style={{fontSize:13,color:'var(--muted)',marginBottom:20,lineHeight:1.7}}>
+            {String(this.state.error.message||this.state.error)}
+          </p>
+          <button className="btn btn-p" onClick={()=>window.location.reload()}>🔄 重新整理</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 // ── AccessPage ────────────────────────────────────────────────
 function AccessPage({accessCode, onEnter}) {
@@ -184,7 +224,11 @@ function AccessPage({accessCode, onEnter}) {
 // ── ProductCard（下單用） ──────────────────────────────────────
 function ProductCard({p, qty, onQty, orders, roundId}) {
   const usedFor = key => (orders||[]).filter(o=>o.roundId===roundId)
-    .reduce((s,o)=>(o.items||[]).filter(it=>it._key===key).reduce((s2,it)=>s2+(it.qty||0),s),0);
+    .reduce((s,o)=>(o.items||[]).filter(it=>{
+      // _key 已在送出時移除，改用 productId + variantId 重建 key
+      const itKey = it.variantId ? `${it.productId}_${it.variantId}` : it.productId;
+      return itKey === key || it._key === key;
+    }).reduce((s2,it)=>s2+(it.qty||0),s),0);
   if (p.variants&&p.variants.length>0) {
     const totalUsed = p.variants.reduce((s,v)=>s+usedFor(`${p.id}_${v.id}`),0);
     const isFull=p.stock>0&&totalUsed>=p.stock; const isLow=p.stock>0&&!isFull&&(p.stock-totalUsed)<=5;
@@ -394,33 +438,60 @@ function OrderPage({config, orders, onRefresh, onGoQuery, onGoAdmin}) {
 // ── QueryPage ─────────────────────────────────────────────────
 function QueryPage({config, onBack}) {
   const [phone,setPhone]=useState(''); const [result,setResult]=useState(null); const [busy,setBusy]=useState(false);
+  // 依 roundId 分組
+  const groupByRound = (orders) => {
+    const map = {};
+    orders.forEach(o => {
+      const k = o.roundId||'unknown';
+      if (!map[k]) map[k] = {roundName: o.roundName||k, orders:[]};
+      map[k].orders.push(o);
+    });
+    // 本團優先排最前
+    return Object.entries(map).sort(([a],[b])=> a===config.roundId?-1:b===config.roundId?1:0);
+  };
+
   const search=async()=>{
     if(!phone.trim())return; setBusy(true);
     try{
       const s=await db.collection('orders').get();
-      const found=s.docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.phone===phone.trim()&&o.roundId===config.roundId).sort((a,b)=>(b.ts||0)-(a.ts||0));
+      // 查詢所有團次中此電話的訂單
+      const found=s.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(o=>o.phone===phone.trim())
+        .sort((a,b)=>(b.ts||0)-(a.ts||0));
       setResult(found);
     }catch(e){alert('查詢失敗：'+e.message);}
     setBusy(false);
   };
+
+  const grouped = result ? groupByRound(result) : [];
+
   return <div className="wrap">
     <div className="hdr"><div className="brand">THE HALF KITCHEN</div><h1>訂單查詢</h1></div>
     <div className="card">
-      <div className="fg"><label>輸入電話號碼（本次開團）</label><input type="tel" placeholder="0912345678" value={phone} onChange={e=>setPhone(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/></div>
+      <div className="fg"><label>輸入電話號碼</label><input type="tel" placeholder="0912345678" value={phone} onChange={e=>setPhone(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/></div>
       <button className="btn btn-p btn-block" disabled={busy} onClick={search}>{busy?'查詢中…':'查詢'}</button>
     </div>
-    {result&&(result.length===0?<div className="card"><div className="empty">本團找不到此電話的訂單</div></div>
-      :result.map(o=><div key={o.id} className="orow">
-        <div className="oh"><span className="oname">{o.nickname}</span>
-          <span style={{display:'flex',gap:6,alignItems:'center'}}>
-            {o.pickedUp&&<span className="badge bg">已取貨</span>}
-            <span className="ototal">{fmtMoney(o.total)}</span>
-          </span>
+    {result&&(result.length===0
+      ?<div className="card"><div className="empty">找不到此電話的任何訂單記錄</div></div>
+      :grouped.map(([roundId,{roundName,orders:ros}])=>(
+        <div key={roundId}>
+          <div style={{display:'flex',alignItems:'center',gap:8,margin:'14px 0 8px',paddingLeft:4}}>
+            <div className="stitle" style={{marginBottom:0}}>{roundName}</div>
+            {roundId===config.roundId&&<span className="badge bg">本團</span>}
+          </div>
+          {ros.map(o=><div key={o.id} className="orow">
+            <div className="oh"><span className="oname">{o.nickname}</span>
+              <span style={{display:'flex',gap:6,alignItems:'center'}}>
+                {o.pickedUp&&<span className="badge bg">已取貨</span>}
+                <span className="ototal">{fmtMoney(o.total)}</span>
+              </span>
+            </div>
+            <div className="oitems">{(o.items||[]).map((it,i)=><div key={i}>{it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty}</div>)}</div>
+            {o.note&&<div className="onote">備註：{o.note}</div>}
+            <div style={{fontSize:12,color:'var(--muted)',marginTop:5}}>{fmtDate(o.ts)}</div>
+          </div>)}
         </div>
-        <div className="oitems">{(o.items||[]).map((it,i)=><div key={i}>{it.productName}{it.variantName?` · ${it.variantName}`:''} × {it.qty}</div>)}</div>
-        {o.note&&<div className="onote">備註：{o.note}</div>}
-        <div style={{fontSize:12,color:'var(--muted)',marginTop:5}}>{fmtDate(o.ts)}</div>
-      </div>)
+      ))
     )}
     <div className="links"><a onClick={onBack}>← 返回下單</a></div>
   </div>;
@@ -711,7 +782,8 @@ function PickupPage({config, orders, onRefresh, onBack}) {
 function SetupPage({config, onSave, onBack, initialProducts}) {
   const [form,setForm]=useState({
     title:config.title||'', description:config.description||'',
-    deliveryDate:config.deliveryDate||'', deadline:config.deadline?config.deadline.slice(0,16):'',
+    deliveryDate:config.deliveryDate||'', deliveryDateISO:config.deliveryDateISO||'',
+    deadline:config.deadline?config.deadline.slice(0,16):'',
     pickupNote:config.pickupNote||'', adminPass:config.adminPass||'0000',
     accessCode:config.accessCode||'', roundName:config.roundName||'',
     products:(initialProducts||(config.products||[])).map(p=>({...p,variants:(p.variants||[]).map(v=>({...v}))}))
@@ -743,7 +815,8 @@ function SetupPage({config, onSave, onBack, initialProducts}) {
       <div className="fg"><label>團次名稱</label><input value={form.roundName} onChange={e=>sf('roundName',e.target.value)} placeholder="第1團"/></div>
       <div className="fg"><label>團購名稱</label><input value={form.title} onChange={e=>sf('title',e.target.value)}/></div>
       <div className="fg"><label>說明（支援換行）</label><textarea value={form.description} onChange={e=>sf('description',e.target.value)}/></div>
-      <div className="fg"><label>取貨時間</label><input value={form.deliveryDate} onChange={e=>sf('deliveryDate',e.target.value)} placeholder="6/20（五）下午1–5點"/></div>
+      <div className="fg"><label>取貨時間（顯示文字）</label><input value={form.deliveryDate} onChange={e=>sf('deliveryDate',e.target.value)} placeholder="6/20（五）下午1–5點"/></div>
+      <div className="fg"><label>出貨日期（用於自動清除計算）</label><input type="date" value={form.deliveryDateISO||''} onChange={e=>sf('deliveryDateISO',e.target.value)}/><div style={{fontSize:12,color:'var(--muted)',marginTop:4}}>設定後，出貨日 +14 天起管理員可手動清除本團消費者訂單明細</div></div>
       <div className="fg"><label>取貨說明</label><textarea value={form.pickupNote} onChange={e=>sf('pickupNote',e.target.value)}/></div>
       <div className="fg" style={{marginBottom:0}}><label>截止時間</label><input type="datetime-local" value={form.deadline} onChange={e=>sf('deadline',e.target.value)}/></div>
     </div>
@@ -751,6 +824,77 @@ function SetupPage({config, onSave, onBack, initialProducts}) {
     <ProductEditor products={form.products} onChange={v=>sf('products',v)}/>
     <button className="btn btn-p btn-block" disabled={busy} onClick={save} style={{marginTop:4,marginBottom:20}}>{busy?'儲存中…':'💾 儲存設定'}</button>
   </div>;
+}
+
+// ── PurgeButton（清除過期訂單明細） ─────────────────────────
+function PurgeButton({config, orders, onRefresh}) {
+  const [busy,setBusy]=useState(false);
+
+  // 計算是否可清除：出貨日期 + 14 天已過
+  const canPurge = () => {
+    if (!config.deliveryDateISO) return false;
+    const deliveryDate = new Date(config.deliveryDateISO);
+    const purgeDate = new Date(deliveryDate.getTime() + 14*24*60*60*1000);
+    return new Date() >= purgeDate;
+  };
+
+  const getDaysUntilPurge = () => {
+    if (!config.deliveryDateISO) return null;
+    const deliveryDate = new Date(config.deliveryDateISO);
+    const purgeDate = new Date(deliveryDate.getTime() + 14*24*60*60*1000);
+    const diff = Math.ceil((purgeDate - new Date()) / (24*60*60*1000));
+    return diff > 0 ? diff : 0;
+  };
+
+  const purge = async () => {
+    const roundOrders = orders.filter(o=>o.roundId===config.roundId);
+    if (roundOrders.length === 0) { alert('本團沒有訂單可清除'); return; }
+    if (!canPurge()) {
+      const days = getDaysUntilPurge();
+      alert(`尚未到清除時間，還需等待 ${days} 天（出貨日 + 14 天後才可清除）`);
+      return;
+    }
+    if (!confirm(`確定清除本團「${config.roundName}」的 ${roundOrders.length} 筆消費者訂單明細？\n\n統計數量已保留在歷史紀錄中，此操作不可復原。`)) return;
+    setBusy(true);
+    try {
+      // 批次刪除本團所有訂單
+      const batch = db.batch();
+      roundOrders.forEach(o => {
+        batch.delete(db.collection('orders').doc(o.id));
+      });
+      await batch.commit();
+      // 在 roundHistory 標記已清除
+      if (config.roundId) {
+        await db.collection('roundHistory').doc(config.roundId).set(
+          { purgedAt: Date.now(), purgedCount: roundOrders.length },
+          { merge: true }
+        );
+      }
+      alert(`已清除 ${roundOrders.length} 筆訂單明細，統計資料保留於歷史紀錄。`);
+      onRefresh();
+    } catch(e) { alert('清除失敗：'+e.message); }
+    setBusy(false);
+  };
+
+  const daysLeft = getDaysUntilPurge();
+  const ready = canPurge();
+  const hasDeliveryDate = !!config.deliveryDateISO;
+  const roundOrderCount = orders.filter(o=>o.roundId===config.roundId).length;
+
+  if (!hasDeliveryDate) return null; // 沒設出貨日期就不顯示
+  if (roundOrderCount === 0) return null; // 沒有訂單也不顯示
+
+  return (
+    <button
+      className={`btn btn-sm ${ready?'btn-d':'btn-ghost'}`}
+      style={{border: ready?'none':'1px solid var(--border)', opacity: busy?0.6:1}}
+      disabled={busy}
+      onClick={purge}
+      title={ready ? '點擊清除本團消費者訂單明細' : `出貨後 ${daysLeft} 天可清除`}
+    >
+      {busy ? '清除中…' : ready ? '🗑 清除訂單明細' : `🔒 ${daysLeft}天後可清除`}
+    </button>
+  );
 }
 
 // ── AdminPage ─────────────────────────────────────────────────
@@ -825,6 +969,7 @@ function AdminPage({config, orders, onRefresh, onLogout, onNav}) {
     <div style={{display:'flex',gap:7,marginBottom:13,flexWrap:'wrap'}}>
       <button className="btn btn-s btn-sm" onClick={exportPickup}>📥 取貨核對表</button>
       <button className="btn btn-s btn-sm" onClick={exportStat}>📥 叫貨統計</button>
+      <PurgeButton config={config} orders={orders} onRefresh={onRefresh}/>
     </div>
     {ro.length===0?<div className="card"><div className="empty">目前沒有訂單</div></div>
       :ro.map(o=><div key={o.id} className="orow">
@@ -870,7 +1015,11 @@ function App() {
       setConfig(cfg); setOrders(await getOrders());
       if(!cfg.accessCode) setAccessGranted(true);
       setAppPage('main');
-    }catch(e){alert('連接 Firebase 失敗：'+e.message);}
+    }catch(e){
+      console.error('Init error:', e);
+      // 即使失敗也設定 appPage 讓 ErrorBoundary 接管，而非停在 loading
+      alert('連接 Firebase 失敗：'+e.message+'\n\n請確認網路連線後重新整理。');
+    }
   },[]);
 
   const refreshOrders=useCallback(async()=>{
@@ -912,7 +1061,7 @@ function App() {
   return <OrderPage config={config} orders={orders} onRefresh={refreshOrders} onGoQuery={()=>setAppPage('query')} onGoAdmin={()=>setAppPage('admin-login')}/>;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App/></ErrorBoundary>);
 </script>
 </body>
 </html>

@@ -1497,6 +1497,70 @@ function HistoryPage({
     if (!confirm(`複製「${h.roundName}」的品項到本團？\n（將覆蓋本團目前的品項設定）`)) return;
     onLoadProducts(h.products || []);
   };
+
+  // 匯出歷史團取貨核對表
+  const exportHistoryPickup = async h => {
+    try {
+      // 從 orders collection 撈該團訂單
+      const snap = await db.collection('orders').get();
+      const roundOrders = snap.docs.map(d => ({id: d.id, ...d.data()}))
+        .filter(o => o.roundId === h.roundId)
+        .sort((a, b) => (a.ts||0) - (b.ts||0));
+      if (roundOrders.length === 0) { alert('此團沒有訂單記錄（可能已被清除）'); return; }
+
+      // 收集品項名稱
+      const productNames = [];
+      roundOrders.forEach(o => (o.items||[]).forEach(it => {
+        const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+        if (!productNames.includes(name)) productNames.push(name);
+      }));
+
+      let csv = `姓名,電話,${productNames.join(',')},合計,取貨\n`;
+      roundOrders.forEach(o => {
+        const itemMap = {};
+        (o.items||[]).forEach(it => {
+          const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+          itemMap[name] = (itemMap[name]||0) + (it.qty||0);
+        });
+        const cols = productNames.map(name => itemMap[name]||0);
+        csv += `${o.nickname},${o.phone},${cols.join(',')},${o.total},${o.pickedUp?'✓':''}\n`;
+      });
+
+      // 加總列
+      const totalMap = {};
+      roundOrders.forEach(o => (o.items||[]).forEach(it => {
+        const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+        totalMap[name] = (totalMap[name]||0) + (it.qty||0);
+      }));
+      const totalAmount = roundOrders.reduce((s,o) => s+(o.total||0), 0);
+      csv += `合計,,${productNames.map(n => totalMap[n]||0).join(',')},${totalAmount},\n`;
+
+      exportCSV(csv, `取貨核對表_${h.roundName}.csv`);
+    } catch(e) { alert('匯出失敗：' + e.message); }
+  };
+
+  // 匯出歷史團叫貨統計
+  const exportHistoryStat = async h => {
+    try {
+      const snap = await db.collection('orders').get();
+      const roundOrders = snap.docs.map(d => ({id: d.id, ...d.data()}))
+        .filter(o => o.roundId === h.roundId);
+      if (roundOrders.length === 0) { alert('此團沒有訂單記錄（可能已被清除）'); return; }
+
+      const statMap = {};
+      roundOrders.forEach(o => (o.items||[]).forEach(it => {
+        const name = it.variantName ? `${it.productName} · ${it.variantName}` : it.productName;
+        if (!statMap[name]) statMap[name] = 0;
+        statMap[name] += it.qty||0;
+      }));
+      const totalAmount = roundOrders.reduce((s,o) => s+(o.total||0), 0);
+
+      let csv = '品項,數量\n';
+      Object.entries(statMap).forEach(([name, qty]) => csv += `${name},${qty}\n`);
+      csv += `\n總訂單數,${roundOrders.length}\n總金額,${totalAmount}\n`;
+      exportCSV(csv, `叫貨統計_${h.roundName}.csv`);
+    } catch(e) { alert('匯出失敗：' + e.message); }
+  };
   if (!history) return /*#__PURE__*/React.createElement("div", {
     className: "wrap"
   }, /*#__PURE__*/React.createElement(Loading, null));
@@ -1579,7 +1643,15 @@ function HistoryPage({
       border: '1px solid var(--border)'
     },
     onClick: () => copyToNewRound(h)
-  }, "📋 複製到本團")), expanded === h.id && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("table", {
+  }, "📋 複製到本團"), /*#__PURE__*/React.createElement("button", {
+              className: "btn btn-ghost btn-sm",
+              style: {border: '1px solid var(--border)'},
+              onClick: () => exportHistoryPickup(h)
+            }, "📥 取貨核對表"), /*#__PURE__*/React.createElement("button", {
+              className: "btn btn-ghost btn-sm",
+              style: {border: '1px solid var(--border)'},
+              onClick: () => exportHistoryStat(h)
+            }, "📥 叫貨統計")), expanded === h.id && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("table", {
     className: "htbl"
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "品項"), /*#__PURE__*/React.createElement("th", null, "數量"), /*#__PURE__*/React.createElement("th", null, "小計"))), /*#__PURE__*/React.createElement("tbody", null, (h.productSummary || []).map((s, i) => /*#__PURE__*/React.createElement("tr", {
     key: i
